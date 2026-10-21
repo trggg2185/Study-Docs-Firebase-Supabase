@@ -27,6 +27,22 @@ class _FakeSupabaseService implements SupabaseService {
   String? get currentUserEmail => 'user@example.com';
 
   @override
+  Future<void> ensureProfile({
+    required String uid,
+    required String email,
+    String fullName = '',
+  }) async {}
+
+  @override
+  Future<Map<String, dynamic>?> getProfile(String uid) async => null;
+
+  @override
+  Future<void> updateInterests(String uid, List<String> interests) async {}
+
+  @override
+  Future<void> updateFcmToken(String uid, String? token) async {}
+
+  @override
   Future<Map<String, dynamic>> uploadBytes({
     required Uint8List bytes,
     required String fileName,
@@ -59,6 +75,7 @@ class _FakeSupabaseService implements SupabaseService {
     String? query,
     DocumentType? type,
     String? subject,
+    List<String>? tags,
     bool onlyShared = false,
   }) async {
     return <DocumentModel>[];
@@ -77,6 +94,10 @@ class _FakeSupabaseService implements SupabaseService {
     String filePath = '',
     String fileName = '',
     int fileSize = 0,
+    List<String> tags = const [],
+    String? locationName,
+    double? latitude,
+    double? longitude,
   }) async {
     createDocumentCalled = true;
     return 'doc-123';
@@ -93,6 +114,10 @@ class _FakeSupabaseService implements SupabaseService {
     String? filePath,
     String? fileName,
     int? fileSize,
+    List<String> tags = const [],
+    String? locationName,
+    double? latitude,
+    double? longitude,
   }) async {}
 
   @override

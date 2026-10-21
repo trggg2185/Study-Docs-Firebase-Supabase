@@ -9,6 +9,7 @@ import 'package:provider/provider.dart';
 import '../struct/document_struct.dart';
 import '../modified/models/document_model.dart';
 import '../widgets/framework/app_scaffold.dart';
+import '../widgets/framework/location_field.dart';
 
 /// Trang Thêm / Chỉnh sửa tài liệu (Lưu trên Supabase Database & Storage)
 class DocumentFormPage extends StatefulWidget {
@@ -34,6 +35,9 @@ class _DocumentFormPageState extends State<DocumentFormPage> {
   String? _selectedFileName;
   String _existingFileUrl = '';
   String _existingFileName = '';
+  String _locationName = '';
+  double? _latitude;
+  double? _longitude;
   bool _isLoading = false;
   bool _isInitialized = false;
 
@@ -60,6 +64,9 @@ class _DocumentFormPageState extends State<DocumentFormPage> {
         _selectedType = doc.type;
         _existingFileUrl = doc.fileUrl;
         _existingFileName = doc.fileName;
+        _locationName = doc.locationName ?? '';
+        _latitude = doc.latitude;
+        _longitude = doc.longitude;
         _isInitialized = true;
       });
     }
@@ -134,6 +141,11 @@ class _DocumentFormPageState extends State<DocumentFormPage> {
           newFile: _selectedFile,
           newFileBytes: _selectedFileBytes,
           customFileName: _selectedFileName,
+          locationName: _locationName.trim().isEmpty
+              ? null
+              : _locationName.trim(),
+          latitude: _latitude,
+          longitude: _longitude,
         );
       } else {
         // Tạo mới tài liệu và tải file lên Supabase Storage
@@ -145,6 +157,11 @@ class _DocumentFormPageState extends State<DocumentFormPage> {
           file: _selectedFile,
           fileBytes: _selectedFileBytes,
           customFileName: _selectedFileName,
+          locationName: _locationName.trim().isEmpty
+              ? null
+              : _locationName.trim(),
+          latitude: _latitude,
+          longitude: _longitude,
         );
       }
 
@@ -276,6 +293,21 @@ class _DocumentFormPageState extends State<DocumentFormPage> {
                       border: OutlineInputBorder(),
                     ),
                     maxLines: 3,
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Vị trí vật lý (Đức hoàn thiện)
+                  LocationField(
+                    initialName: _locationName,
+                    initialLatitude: _latitude,
+                    initialLongitude: _longitude,
+                    onChanged: (name, latitude, longitude) {
+                      setState(() {
+                        _locationName = name;
+                        _latitude = latitude;
+                        _longitude = longitude;
+                      });
+                    },
                   ),
                   const SizedBox(height: 20),
 

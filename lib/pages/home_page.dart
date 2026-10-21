@@ -6,6 +6,7 @@ import '../struct/document_struct.dart';
 import '../modified/models/document_model.dart';
 import '../widgets/framework/app_scaffold.dart';
 import '../widgets/framework/document_tile.dart';
+import '../widgets/framework/recommendation_section.dart';
 import '../widgets/framework/search_field.dart';
 import '../widgets/util/loading_indicator.dart';
 import '../widgets/util/empty_state.dart';
@@ -346,6 +347,9 @@ class _HomePageState extends State<HomePage> {
 
             // Bộ lọc chia sẻ và loại tài liệu
             _buildFilterChips(),
+
+            // Gợi ý tài liệu (Đức hoàn thiện)
+            const RecommendationSection(),
 
             const Divider(height: 1),
 

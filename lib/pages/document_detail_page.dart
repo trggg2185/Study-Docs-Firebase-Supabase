@@ -8,6 +8,8 @@ import '../services/supabase/supabase_service.dart';
 import '../modified/models/document_model.dart';
 import '../modified/models/document_share_model.dart';
 import '../widgets/framework/app_scaffold.dart';
+import '../widgets/framework/borrow_request_button.dart';
+import '../widgets/framework/document_location_card.dart';
 import '../widgets/util/loading_indicator.dart';
 import 'document_form_page.dart';
 
@@ -414,6 +416,10 @@ class _DocumentDetailPageState extends State<DocumentDetailPage> {
             ),
             const SizedBox(height: 16),
 
+            // Vị trí vật lý (Đức hoàn thiện)
+            DocumentLocationCard(document: doc),
+            const SizedBox(height: 16),
+
             // Card tệp tin Supabase Storage
             if (doc.fileUrl.isNotEmpty) ...[
               Card(
@@ -507,6 +513,12 @@ class _DocumentDetailPageState extends State<DocumentDetailPage> {
                   ),
                 ),
               ),
+              const SizedBox(height: 16),
+            ],
+
+            // Yêu cầu mượn tài liệu (Đại hoàn thiện)
+            if (!isOwner) ...[
+              BorrowRequestButton(document: doc),
               const SizedBox(height: 16),
             ],
 

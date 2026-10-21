@@ -25,7 +25,7 @@ Future<void> main() async {
   // 2. Khởi tạo Supabase cho Cơ sở dữ liệu (Database) và Tệp tin (Storage)
   await Supabase.initialize(
     url: SupabaseConfig.url,
-    anonKey: SupabaseConfig.anonKey,
+    publishableKey: SupabaseConfig.anonKey, // anon key cũ = publishable key
   );
 
   final authService = AuthService();
@@ -105,10 +105,43 @@ class AuthGate extends StatelessWidget {
         }
         final user = snapshot.data;
         if (user != null) {
-          return const HomePage();
+          return _ProfileBootstrap(key: ValueKey(user.uid), user: user);
         }
         return const LoginPage();
       },
     );
   }
+}
+
+/// Tạo hồ sơ Supabase một lần sau khi đăng nhập, không chặn vào app nếu lỗi.
+class _ProfileBootstrap extends StatefulWidget {
+  final User user;
+
+  const _ProfileBootstrap({super.key, required this.user});
+
+  @override
+  State<_ProfileBootstrap> createState() => _ProfileBootstrapState();
+}
+
+class _ProfileBootstrapState extends State<_ProfileBootstrap> {
+  @override
+  void initState() {
+    super.initState();
+    _ensureProfile();
+  }
+
+  Future<void> _ensureProfile() async {
+    try {
+      await context.read<SupabaseService>().ensureProfile(
+        uid: widget.user.uid,
+        email: widget.user.email ?? '',
+        fullName: widget.user.displayName ?? '',
+      );
+    } catch (e) {
+      debugPrint('Không tạo được profile Supabase: $e');
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => const HomePage();
 }
