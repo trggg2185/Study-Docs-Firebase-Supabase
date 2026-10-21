@@ -5,6 +5,11 @@
 >
 > **Quy tắc quan trọng:** mỗi thành viên làm trên **nhánh riêng**, mở Pull Request để Trưởng review và merge.
 > **Tuyệt đối không push trực tiếp lên `main`.**
+>
+> **Sprint 0 (21/10):** code nền tảng đã xong trên nhánh `feature/truong-foundation`
+> (model tag/vị trí, service, profile, 4 widget stub, test). Trưởng còn phải:
+> chạy `docs/upgrade-v2.sql` trên Supabase → push/merge nhánh → mới thông báo thành viên bắt đầu.
+> RLS thật (Third-Party Auth) làm sau, xem mục 9.3.
 
 ---
 
