@@ -8,7 +8,9 @@ import 'package:provider/provider.dart';
 
 import '../struct/document_struct.dart';
 import '../modified/models/document_model.dart';
+import '../utils/tag_utils.dart';
 import '../widgets/framework/app_scaffold.dart';
+import '../widgets/framework/location_field.dart';
 
 /// Trang Thêm / Chỉnh sửa tài liệu (Lưu trên Supabase Database & Storage)
 class DocumentFormPage extends StatefulWidget {
@@ -27,6 +29,7 @@ class _DocumentFormPageState extends State<DocumentFormPage> {
   final _titleController = TextEditingController();
   final _descriptionController = TextEditingController();
   final _subjectController = TextEditingController();
+  final _tagsController = TextEditingController();
 
   DocumentType _selectedType = DocumentType.lecture;
   File? _selectedFile;
@@ -34,6 +37,9 @@ class _DocumentFormPageState extends State<DocumentFormPage> {
   String? _selectedFileName;
   String _existingFileUrl = '';
   String _existingFileName = '';
+  String _locationName = '';
+  double? _latitude;
+  double? _longitude;
   bool _isLoading = false;
   bool _isInitialized = false;
 
@@ -42,6 +48,7 @@ class _DocumentFormPageState extends State<DocumentFormPage> {
     _titleController.dispose();
     _descriptionController.dispose();
     _subjectController.dispose();
+    _tagsController.dispose();
     super.dispose();
   }
 
@@ -57,9 +64,13 @@ class _DocumentFormPageState extends State<DocumentFormPage> {
         _titleController.text = doc.title;
         _descriptionController.text = doc.description;
         _subjectController.text = doc.subject;
+        _tagsController.text = doc.tags.join(', ');
         _selectedType = doc.type;
         _existingFileUrl = doc.fileUrl;
         _existingFileName = doc.fileName;
+        _locationName = doc.locationName ?? '';
+        _latitude = doc.latitude;
+        _longitude = doc.longitude;
         _isInitialized = true;
       });
     }
@@ -131,9 +142,15 @@ class _DocumentFormPageState extends State<DocumentFormPage> {
           description: _descriptionController.text,
           type: _selectedType,
           subject: _subjectController.text,
+          tags: normalizeTags(_tagsController.text),
           newFile: _selectedFile,
           newFileBytes: _selectedFileBytes,
           customFileName: _selectedFileName,
+          locationName: _locationName.trim().isEmpty
+              ? null
+              : _locationName.trim(),
+          latitude: _latitude,
+          longitude: _longitude,
         );
       } else {
         // Tạo mới tài liệu và tải file lên Supabase Storage
@@ -142,9 +159,15 @@ class _DocumentFormPageState extends State<DocumentFormPage> {
           description: _descriptionController.text,
           type: _selectedType,
           subject: _subjectController.text,
+          tags: normalizeTags(_tagsController.text),
           file: _selectedFile,
           fileBytes: _selectedFileBytes,
           customFileName: _selectedFileName,
+          locationName: _locationName.trim().isEmpty
+              ? null
+              : _locationName.trim(),
+          latitude: _latitude,
+          longitude: _longitude,
         );
       }
 
@@ -200,211 +223,249 @@ class _DocumentFormPageState extends State<DocumentFormPage> {
                 ],
               ),
             )
-          : Form(
-              key: _formKey,
-              child: ListView(
-                padding: const EdgeInsets.all(16),
-                children: [
-                  // Tiêu đề
-                  TextFormField(
-                    controller: _titleController,
-                    decoration: const InputDecoration(
-                      labelText: 'Tiêu đề tài liệu *',
-                      hintText: 'Nhập tiêu đề...',
-                      prefixIcon: Icon(Icons.title),
-                      border: OutlineInputBorder(),
-                    ),
-                    validator: (value) {
-                      if (value == null || value.trim().isEmpty) {
-                        return 'Vui lòng nhập tiêu đề';
-                      }
-                      if (value.trim().length > 200) {
-                        return 'Tiêu đề không được quá 200 ký tự';
-                      }
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Môn học
-                  TextFormField(
-                    controller: _subjectController,
-                    decoration: const InputDecoration(
-                      labelText: 'Môn học *',
-                      hintText: 'VD: Lập trình di động, Toán cao cấp...',
-                      prefixIcon: Icon(Icons.subject),
-                      border: OutlineInputBorder(),
-                    ),
-                    validator: (value) {
-                      if (value == null || value.trim().isEmpty) {
-                        return 'Vui lòng nhập môn học';
-                      }
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Loại tài liệu
-                  DropdownButtonFormField<DocumentType>(
-                    initialValue: _selectedType,
-                    decoration: const InputDecoration(
-                      labelText: 'Loại tài liệu *',
-                      prefixIcon: Icon(Icons.category),
-                      border: OutlineInputBorder(),
-                    ),
-                    items: DocumentType.values.map((type) {
-                      return DropdownMenuItem(
-                        value: type,
-                        child: Text(type.displayName),
-                      );
-                    }).toList(),
-                    onChanged: (value) {
-                      if (value != null) {
-                        setState(() => _selectedType = value);
-                      }
-                    },
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Mô tả
-                  TextFormField(
-                    controller: _descriptionController,
-                    decoration: const InputDecoration(
-                      labelText: 'Mô tả tóm tắt',
-                      hintText: 'Ghi chú ngắn về tài liệu (tùy chọn)...',
-                      prefixIcon: Icon(Icons.description_outlined),
-                      border: OutlineInputBorder(),
-                    ),
-                    maxLines: 3,
-                  ),
-                  const SizedBox(height: 20),
-
-                  // Khu vực đính kèm file (Supabase Storage)
-                  Card(
-                    elevation: 0,
-                    color: Theme.of(context)
-                        .colorScheme
-                        .surfaceContainerHighest,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      side: BorderSide(
-                        color: Theme.of(context).colorScheme.outlineVariant,
+          : Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 800),
+                child: Form(
+                  key: _formKey,
+                  child: ListView(
+                    padding: const EdgeInsets.all(16),
+                    children: [
+                      // Tiêu đề
+                      TextFormField(
+                        controller: _titleController,
+                        decoration: const InputDecoration(
+                          labelText: 'Tiêu đề tài liệu *',
+                          hintText: 'Nhập tiêu đề...',
+                          prefixIcon: Icon(Icons.title),
+                          border: OutlineInputBorder(),
+                        ),
+                        validator: (value) {
+                          if (value == null || value.trim().isEmpty) {
+                            return 'Vui lòng nhập tiêu đề';
+                          }
+                          if (value.trim().length > 200) {
+                            return 'Tiêu đề không được quá 200 ký tự';
+                          }
+                          return null;
+                        },
                       ),
-                    ),
-                    child: Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          Row(
+                      const SizedBox(height: 16),
+
+                      // Môn học
+                      TextFormField(
+                        controller: _subjectController,
+                        decoration: const InputDecoration(
+                          labelText: 'Môn học *',
+                          hintText: 'VD: Lập trình di động, Toán cao cấp...',
+                          prefixIcon: Icon(Icons.subject),
+                          border: OutlineInputBorder(),
+                        ),
+                        validator: (value) {
+                          if (value == null || value.trim().isEmpty) {
+                            return 'Vui lòng nhập môn học';
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 16),
+
+                      // Tags
+                      TextFormField(
+                        controller: _tagsController,
+                        decoration: const InputDecoration(
+                          labelText: 'Tag',
+                          hintText: 'Ví dụ: flutter, lập trình, mobile',
+                          helperText: 'Cách nhau bằng dấu phẩy; tối đa 5 tag.',
+                          prefixIcon: Icon(Icons.sell_outlined),
+                          border: OutlineInputBorder(),
+                        ),
+                        textCapitalization: TextCapitalization.none,
+                      ),
+                      const SizedBox(height: 16),
+
+                      // Loại tài liệu
+                      DropdownButtonFormField<DocumentType>(
+                        initialValue: _selectedType,
+                        decoration: const InputDecoration(
+                          labelText: 'Loại tài liệu *',
+                          prefixIcon: Icon(Icons.category),
+                          border: OutlineInputBorder(),
+                        ),
+                        items: DocumentType.values.map((type) {
+                          return DropdownMenuItem(
+                            value: type,
+                            child: Text(type.displayName),
+                          );
+                        }).toList(),
+                        onChanged: (value) {
+                          if (value != null) {
+                            setState(() => _selectedType = value);
+                          }
+                        },
+                      ),
+                      const SizedBox(height: 16),
+
+                      // Mô tả
+                      TextFormField(
+                        controller: _descriptionController,
+                        decoration: const InputDecoration(
+                          labelText: 'Mô tả tóm tắt',
+                          hintText: 'Ghi chú ngắn về tài liệu (tùy chọn)...',
+                          prefixIcon: Icon(Icons.description_outlined),
+                          border: OutlineInputBorder(),
+                        ),
+                        maxLines: 3,
+                      ),
+                      const SizedBox(height: 16),
+
+                      // Vị trí vật lý (Đức hoàn thiện)
+                      LocationField(
+                        initialName: _locationName,
+                        initialLatitude: _latitude,
+                        initialLongitude: _longitude,
+                        onChanged: (name, latitude, longitude) {
+                          setState(() {
+                            _locationName = name;
+                            _latitude = latitude;
+                            _longitude = longitude;
+                          });
+                        },
+                      ),
+                      const SizedBox(height: 20),
+
+                      // Khu vực đính kèm file (Supabase Storage)
+                      Card(
+                        elevation: 0,
+                        color: Theme.of(context)
+                            .colorScheme
+                            .surfaceContainerHighest,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          side: BorderSide(
+                            color: Theme.of(context).colorScheme.outlineVariant,
+                          ),
+                        ),
+                        child: Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
-                              Icon(
-                                Icons.cloud_upload_outlined,
-                                color: Theme.of(context).colorScheme.primary,
+                              Row(
+                                children: [
+                                  Icon(
+                                    Icons.cloud_upload_outlined,
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .primary,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  const Text(
+                                    'Tệp tài liệu (Supabase Storage)',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ],
                               ),
-                              const SizedBox(width: 8),
-                              const Text(
-                                'Tệp tài liệu (Supabase Storage)',
-                                style: TextStyle(fontWeight: FontWeight.bold),
+                              const SizedBox(height: 10),
+
+                              if (_selectedFileName != null) ...[
+                                ListTile(
+                                  contentPadding: EdgeInsets.zero,
+                                  leading: const Icon(
+                                    Icons.insert_drive_file,
+                                    color: Colors.indigo,
+                                  ),
+                                  title: Text(
+                                    _selectedFileName!,
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                  subtitle: const Text(
+                                    'File mới được chọn (sẵn sàng tải lên)',
+                                  ),
+                                  trailing: IconButton(
+                                    icon: const Icon(
+                                      Icons.close,
+                                      color: Colors.red,
+                                    ),
+                                    tooltip: 'Bỏ chọn',
+                                    onPressed: () {
+                                      setState(() {
+                                        _selectedFile = null;
+                                        _selectedFileBytes = null;
+                                        _selectedFileName = null;
+                                      });
+                                    },
+                                  ),
+                                ),
+                              ] else if (_existingFileUrl.isNotEmpty) ...[
+                                ListTile(
+                                  contentPadding: EdgeInsets.zero,
+                                  leading: const Icon(
+                                    Icons.cloud_done,
+                                    color: Colors.green,
+                                  ),
+                                  title: Text(
+                                    _existingFileName.isNotEmpty
+                                        ? _existingFileName
+                                        : 'Đã có file trên Cloud Storage',
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                  subtitle: const Text(
+                                    'File đang lưu trên Supabase Storage',
+                                  ),
+                                ),
+                              ] else ...[
+                                const Text(
+                                  'Chưa có file nào được chọn. Bạn có thể chọn file từ máy để lưu trữ trên Cloud.',
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    color: Colors.grey,
+                                  ),
+                                ),
+                              ],
+
+                              const SizedBox(height: 8),
+                              FilledButton.tonalIcon(
+                                onPressed: _pickFile,
+                                icon: const Icon(Icons.folder_open),
+                                label: Text(
+                                  _selectedFileName != null ||
+                                          _existingFileUrl.isNotEmpty
+                                      ? 'Chọn file khác'
+                                      : 'Chọn file từ thiết bị',
+                                ),
                               ),
                             ],
                           ),
-                          const SizedBox(height: 10),
-
-                          if (_selectedFileName != null) ...[
-                            ListTile(
-                              contentPadding: EdgeInsets.zero,
-                              leading: const Icon(
-                                Icons.insert_drive_file,
-                                color: Colors.indigo,
-                              ),
-                              title: Text(
-                                _selectedFileName!,
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                              subtitle: const Text(
-                                'File mới được chọn (sẵn sàng tải lên)',
-                              ),
-                              trailing: IconButton(
-                                icon: const Icon(
-                                  Icons.close,
-                                  color: Colors.red,
-                                ),
-                                tooltip: 'Bỏ chọn',
-                                onPressed: () {
-                                  setState(() {
-                                    _selectedFile = null;
-                                    _selectedFileBytes = null;
-                                    _selectedFileName = null;
-                                  });
-                                },
-                              ),
-                            ),
-                          ] else if (_existingFileUrl.isNotEmpty) ...[
-                            ListTile(
-                              contentPadding: EdgeInsets.zero,
-                              leading: const Icon(
-                                Icons.cloud_done,
-                                color: Colors.green,
-                              ),
-                              title: Text(
-                                _existingFileName.isNotEmpty
-                                    ? _existingFileName
-                                    : 'Đã có file trên Cloud Storage',
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                              subtitle: const Text(
-                                'File đang lưu trên Supabase Storage',
-                              ),
-                            ),
-                          ] else ...[
-                            const Text(
-                              'Chưa có file nào được chọn. Bạn có thể chọn file từ máy để lưu trữ trên Cloud.',
-                              style: TextStyle(
-                                fontSize: 13,
-                                color: Colors.grey,
-                              ),
-                            ),
-                          ],
-
-                          const SizedBox(height: 8),
-                          FilledButton.tonalIcon(
-                            onPressed: _pickFile,
-                            icon: const Icon(Icons.folder_open),
-                            label: Text(
-                              _selectedFileName != null ||
-                                      _existingFileUrl.isNotEmpty
-                                  ? 'Chọn file khác'
-                                  : 'Chọn file từ thiết bị',
-                            ),
-                          ),
-                        ],
+                        ),
                       ),
-                    ),
-                  ),
 
-                  const SizedBox(height: 32),
+                      const SizedBox(height: 32),
 
-                  // Nút Lưu
-                  FilledButton.icon(
-                    onPressed: _isLoading ? null : _save,
-                    icon: Icon(
-                      widget.isEditing ? Icons.save : Icons.cloud_upload,
-                    ),
-                    label: Text(
-                      widget.isEditing
-                          ? 'Cập nhật tài liệu'
-                          : 'Lưu tài liệu lên Supabase',
-                    ),
-                    style: FilledButton.styleFrom(
-                      minimumSize: const Size.fromHeight(50),
-                    ),
+                      // Nút Lưu
+                      FilledButton.icon(
+                        onPressed: _isLoading ? null : _save,
+                        icon: Icon(
+                          widget.isEditing ? Icons.save : Icons.cloud_upload,
+                        ),
+                        label: Text(
+                          widget.isEditing
+                              ? 'Cập nhật tài liệu'
+                              : 'Lưu tài liệu lên Supabase',
+                        ),
+                        style: FilledButton.styleFrom(
+                          minimumSize: const Size.fromHeight(50),
+                        ),
+                      ),
+                    ],
                   ),
-                ],
+                ),
               ),
             ),
     );

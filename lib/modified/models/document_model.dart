@@ -15,6 +15,10 @@ class DocumentModel {
   final DateTime createdAt;
   final DateTime updatedAt;
   final String? sharedPermission; // 'view' hoặc 'edit' nếu được chia sẻ
+  final List<String> tags;
+  final String? locationName;
+  final double? latitude;
+  final double? longitude;
 
   const DocumentModel({
     required this.id,
@@ -32,11 +36,18 @@ class DocumentModel {
     required this.createdAt,
     required this.updatedAt,
     this.sharedPermission,
+    this.tags = const [],
+    this.locationName,
+    this.latitude,
+    this.longitude,
   });
 
   /// Kiểm tra xem người dùng hiện tại có phải là chủ sở hữu không
   bool isOwner(String? currentUserId) =>
       currentUserId != null && ownerId == currentUserId;
+
+  /// Tài liệu có toạ độ để hiển thị trên bản đồ hay không
+  bool get hasLocation => latitude != null && longitude != null;
 
   /// Kiểm tra xem có quyền chỉnh sửa không (là chủ hoặc được chia sẻ quyền 'edit')
   bool canEdit(String? currentUserId) =>
@@ -58,6 +69,11 @@ class DocumentModel {
     DateTime? createdAt,
     DateTime? updatedAt,
     String? sharedPermission,
+    List<String>? tags,
+    String? locationName,
+    double? latitude,
+    double? longitude,
+    bool clearLocation = false,
   }) {
     return DocumentModel(
       id: id ?? this.id,
@@ -75,6 +91,10 @@ class DocumentModel {
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       sharedPermission: sharedPermission ?? this.sharedPermission,
+      tags: tags ?? this.tags,
+      locationName: clearLocation ? null : (locationName ?? this.locationName),
+      latitude: clearLocation ? null : (latitude ?? this.latitude),
+      longitude: clearLocation ? null : (longitude ?? this.longitude),
     );
   }
 
@@ -93,6 +113,10 @@ class DocumentModel {
       'category_id': categoryId,
       'owner_id': ownerId,
       'owner_email': ownerEmail,
+      'tags': tags,
+      'location_name': locationName,
+      'latitude': latitude,
+      'longitude': longitude,
       'updated_at': DateTime.now().toIso8601String(),
     };
   }
@@ -132,12 +156,34 @@ class DocumentModel {
       createdAt: parseDateTime(map['created_at'] ?? map['createdAt']),
       updatedAt: parseDateTime(map['updated_at'] ?? map['updatedAt']),
       sharedPermission: sharedPermission,
+      tags: _parseTags(map['tags']),
+      locationName: map['location_name'] as String?,
+      latitude: (map['latitude'] as num?)?.toDouble(),
+      longitude: (map['longitude'] as num?)?.toDouble(),
     );
   }
 
   @override
   String toString() =>
       'DocumentModel(id: $id, title: $title, type: $type, ownerId: $ownerId)';
+}
+
+/// Postgres trả text[] dạng List; hỗ trợ thêm chuỗi phân tách bằng dấu phẩy.
+List<String> _parseTags(dynamic value) {
+  if (value is List) {
+    return value
+        .map((e) => e.toString().trim())
+        .where((e) => e.isNotEmpty)
+        .toList();
+  }
+  if (value is String) {
+    return value
+        .split(',')
+        .map((e) => e.trim())
+        .where((e) => e.isNotEmpty)
+        .toList();
+  }
+  return const [];
 }
 
 /// Enum loại tài liệu
