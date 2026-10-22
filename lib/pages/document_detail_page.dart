@@ -331,274 +331,310 @@ class _DocumentDetailPageState extends State<DocumentDetailPage> {
       ],
       body: RefreshIndicator(
         onRefresh: _loadData,
-        child: ListView(
-          padding: const EdgeInsets.all(16),
-          children: [
-            // Tiêu đề
-            Text(
-              doc.title,
-              style: Theme.of(context).textTheme.headlineSmall
-                  ?.copyWith(fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 10),
-
-            // Badge loại và quyền
-            Row(
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 800),
+            child: ListView(
+              padding: const EdgeInsets.all(16),
               children: [
-                _buildTypeBadge(doc.type),
-                const SizedBox(width: 8),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: isOwner
-                        ? Colors.indigo.withValues(alpha: 0.1)
-                        : Colors.teal.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: Text(
-                    isOwner
-                        ? 'Tài liệu của tôi'
-                        : (doc.sharedPermission == 'edit'
-                              ? 'Được chia sẻ (Quyền sửa)'
-                              : 'Được chia sẻ (Chỉ xem)'),
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: isOwner ? Colors.indigo : Colors.teal.shade800,
-                    ),
-                  ),
+                // Tiêu đề
+                Text(
+                  doc.title,
+                  style: Theme.of(context).textTheme.headlineSmall
+                      ?.copyWith(fontWeight: FontWeight.bold),
                 ),
-              ],
-            ),
-            const SizedBox(height: 16),
+                const SizedBox(height: 10),
 
-            // Card thông tin
-            Card(
-              elevation: 0,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-                side: BorderSide(
-                  color: Theme.of(context).colorScheme.outlineVariant,
-                ),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
+                // Badge loại và quyền
+                Row(
                   children: [
-                    _infoRow(context, Icons.subject, 'Môn học', doc.subject),
-                    const Divider(),
-                    _infoRow(
-                      context,
-                      Icons.person_outline,
-                      'Người tạo',
-                      doc.ownerEmail.isNotEmpty ? doc.ownerEmail : '(Không rõ)',
-                    ),
-                    const Divider(),
-                    _infoRow(
-                      context,
-                      Icons.calendar_today,
-                      'Ngày tạo',
-                      _formatDate(doc.createdAt),
-                    ),
-                    const Divider(),
-                    _infoRow(
-                      context,
-                      Icons.update,
-                      'Cập nhật',
-                      _formatDate(doc.updatedAt),
+                    _buildTypeBadge(doc.type),
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: isOwner
+                            ? Colors.indigo.withValues(alpha: 0.1)
+                            : Colors.teal.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: Text(
+                        isOwner
+                            ? 'Tài liệu của tôi'
+                            : (doc.sharedPermission == 'edit'
+                                  ? 'Được chia sẻ (Quyền sửa)'
+                                  : 'Được chia sẻ (Chỉ xem)'),
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: isOwner ? Colors.indigo : Colors.teal.shade800,
+                        ),
+                      ),
                     ),
                   ],
                 ),
-              ),
-            ),
-            const SizedBox(height: 16),
+                const SizedBox(height: 16),
 
-            // Vị trí vật lý (Đức hoàn thiện)
-            DocumentLocationCard(document: doc),
-            const SizedBox(height: 16),
-
-            // Card tệp tin Supabase Storage
-            if (doc.fileUrl.isNotEmpty) ...[
-              Card(
-                color: Theme.of(context).colorScheme.primaryContainer
-                    .withValues(alpha: 0.4),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Icon(
-                            Icons.cloud_done,
-                            color: Theme.of(context).colorScheme.primary,
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              doc.fileName.isNotEmpty
-                                  ? doc.fileName
-                                  : 'Tệp tài liệu đính kèm',
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                              ),
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: FilledButton.icon(
-                              onPressed: () => _openFileUrl(doc.fileUrl),
-                              icon: const Icon(Icons.open_in_browser),
-                              label: const Text('Mở / Tải tệp từ Supabase'),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          IconButton.outlined(
-                            tooltip: 'Sao chép link tải',
-                            icon: const Icon(Icons.copy),
-                            onPressed: () {
-                              Clipboard.setData(
-                                ClipboardData(text: doc.fileUrl),
-                              );
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text(
-                                    'Đã sao chép link file vào clipboard!',
-                                  ),
-                                ),
-                              );
-                            },
-                          ),
-                        ],
-                      ),
-                    ],
+                // Card thông tin
+                Card(
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    side: BorderSide(
+                      color: Theme.of(context).colorScheme.outlineVariant,
+                    ),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      children: [
+                        _infoRow(
+                          context,
+                          Icons.subject,
+                          'Môn học',
+                          doc.subject,
+                        ),
+                        const Divider(),
+                        _infoRow(
+                          context,
+                          Icons.person_outline,
+                          'Người tạo',
+                          doc.ownerEmail.isNotEmpty
+                              ? doc.ownerEmail
+                              : '(Không rõ)',
+                        ),
+                        const Divider(),
+                        _infoRow(
+                          context,
+                          Icons.calendar_today,
+                          'Ngày tạo',
+                          _formatDate(doc.createdAt),
+                        ),
+                        const Divider(),
+                        _infoRow(
+                          context,
+                          Icons.update,
+                          'Cập nhật',
+                          _formatDate(doc.updatedAt),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(height: 16),
-            ],
+                const SizedBox(height: 16),
 
-            // Mô tả
-            if (doc.description.isNotEmpty) ...[
-              Text(
-                'Mô tả tài liệu',
-                style: Theme.of(context).textTheme.titleMedium
-                    ?.copyWith(fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 6),
-              Card(
-                elevation: 0,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  side: BorderSide(
-                    color: Theme.of(context).colorScheme.outlineVariant,
-                  ),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.all(14),
-                  child: Text(
-                    doc.description,
-                    style: Theme.of(context).textTheme.bodyLarge,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-            ],
-
-            // Yêu cầu mượn tài liệu (Đại hoàn thiện)
-            if (!isOwner) ...[
-              BorrowRequestButton(document: doc),
-              const SizedBox(height: 16),
-            ],
-
-            // Khu vực quản lý chia sẻ (Chỉ hiển thị cho chủ sở hữu)
-            if (isOwner) ...[
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
+                if (doc.tags.isNotEmpty) ...[
                   Text(
-                    'Chia sẻ với người khác (${_shares.length})',
+                    'Tag',
+                    style: Theme.of(context).textTheme.titleMedium
+                        ?.copyWith(fontWeight: FontWeight.w600),
+                  ),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 4,
+                    children: doc.tags.map((tag) {
+                      return Chip(
+                        label: Text(tag),
+                        backgroundColor: Theme.of(context)
+                            .colorScheme
+                            .surfaceContainerHighest,
+                        side: BorderSide.none,
+                        visualDensity: VisualDensity.compact,
+                      );
+                    }).toList(),
+                  ),
+                  const SizedBox(height: 16),
+                ],
+
+                // Vị trí vật lý (Đức hoàn thiện)
+                DocumentLocationCard(document: doc),
+                const SizedBox(height: 16),
+
+                // Card tệp tin Supabase Storage
+                if (doc.fileUrl.isNotEmpty) ...[
+                  Card(
+                    color: Theme.of(context).colorScheme.primaryContainer
+                        .withValues(alpha: 0.4),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Icon(
+                                Icons.cloud_done,
+                                color: Theme.of(context).colorScheme.primary,
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  doc.fileName.isNotEmpty
+                                      ? doc.fileName
+                                      : 'Tệp tài liệu đính kèm',
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: FilledButton.icon(
+                                  onPressed: () => _openFileUrl(doc.fileUrl),
+                                  icon: const Icon(Icons.open_in_browser),
+                                  label: const Text('Mở / Tải tệp từ Supabase'),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              IconButton.outlined(
+                                tooltip: 'Sao chép link tải',
+                                icon: const Icon(Icons.copy),
+                                onPressed: () {
+                                  Clipboard.setData(
+                                    ClipboardData(text: doc.fileUrl),
+                                  );
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text(
+                                        'Đã sao chép link file vào clipboard!',
+                                      ),
+                                    ),
+                                  );
+                                },
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                ],
+
+                // Mô tả
+                if (doc.description.isNotEmpty) ...[
+                  Text(
+                    'Mô tả tài liệu',
                     style: Theme.of(context).textTheme.titleMedium
                         ?.copyWith(fontWeight: FontWeight.bold),
                   ),
-                  TextButton.icon(
-                    onPressed: _openAddShareDialog,
-                    icon: const Icon(Icons.person_add_alt_1, size: 18),
-                    label: const Text('Thêm người nhận'),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 6),
-              if (_shares.isEmpty)
-                Card(
-                  elevation: 0,
-                  color: Colors.grey.shade50,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    side: BorderSide(color: Colors.grey.shade300),
-                  ),
-                  child: const Padding(
-                    padding: EdgeInsets.all(16),
-                    child: Center(
-                      child: Text(
-                        'Chưa chia sẻ cho ai. Bấm "Thêm người nhận" để chia sẻ qua email.',
-                        style: TextStyle(color: Colors.grey),
-                      ),
-                    ),
-                  ),
-                )
-              else
-                ..._shares.map(
-                  (share) => Card(
-                    margin: const EdgeInsets.only(bottom: 8),
+                  const SizedBox(height: 6),
+                  Card(
                     elevation: 0,
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                      side: BorderSide(color: Colors.grey.shade300),
+                      borderRadius: BorderRadius.circular(12),
+                      side: BorderSide(
+                        color: Theme.of(context).colorScheme.outlineVariant,
+                      ),
                     ),
-                    child: ListTile(
-                      leading: const CircleAvatar(
-                        radius: 16,
-                        child: Icon(Icons.person, size: 18),
-                      ),
-                      title: Text(
-                        share.sharedWithEmail,
-                        style: const TextStyle(fontWeight: FontWeight.w600),
-                      ),
-                      subtitle: Text(
-                        share.permission == 'edit'
-                            ? 'Quyền: Được sửa'
-                            : 'Quyền: Chỉ xem',
-                        style: TextStyle(
-                          color: share.permission == 'edit'
-                              ? Colors.orange.shade800
-                              : Colors.blueGrey,
-                        ),
-                      ),
-                      trailing: IconButton(
-                        icon: const Icon(
-                          Icons.delete_outline,
-                          color: Colors.red,
-                        ),
-                        tooltip: 'Thu hồi quyền chia sẻ',
-                        onPressed: () => _removeShare(share),
+                    child: Padding(
+                      padding: const EdgeInsets.all(14),
+                      child: Text(
+                        doc.description,
+                        style: Theme.of(context).textTheme.bodyLarge,
                       ),
                     ),
                   ),
-                ),
-            ],
-          ],
+                  const SizedBox(height: 16),
+                ],
+
+                // Yêu cầu mượn tài liệu (Đại hoàn thiện)
+                if (!isOwner) ...[
+                  BorrowRequestButton(document: doc),
+                  const SizedBox(height: 16),
+                ],
+
+                // Khu vực quản lý chia sẻ (Chỉ hiển thị cho chủ sở hữu)
+                if (isOwner) ...[
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Chia sẻ với người khác (${_shares.length})',
+                        style: Theme.of(context).textTheme.titleMedium
+                            ?.copyWith(fontWeight: FontWeight.bold),
+                      ),
+                      TextButton.icon(
+                        onPressed: _openAddShareDialog,
+                        icon: const Icon(Icons.person_add_alt_1, size: 18),
+                        label: const Text('Thêm người nhận'),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  if (_shares.isEmpty)
+                    Card(
+                      elevation: 0,
+                      color: Colors.grey.shade50,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        side: BorderSide(color: Colors.grey.shade300),
+                      ),
+                      child: const Padding(
+                        padding: EdgeInsets.all(16),
+                        child: Center(
+                          child: Text(
+                            'Chưa chia sẻ cho ai. Bấm "Thêm người nhận" để chia sẻ qua email.',
+                            style: TextStyle(color: Colors.grey),
+                          ),
+                        ),
+                      ),
+                    )
+                  else
+                    ..._shares.map(
+                      (share) => Card(
+                        margin: const EdgeInsets.only(bottom: 8),
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          side: BorderSide(color: Colors.grey.shade300),
+                        ),
+                        child: ListTile(
+                          leading: const CircleAvatar(
+                            radius: 16,
+                            child: Icon(Icons.person, size: 18),
+                          ),
+                          title: Text(
+                            share.sharedWithEmail,
+                            style: const TextStyle(fontWeight: FontWeight.w600),
+                          ),
+                          subtitle: Text(
+                            share.permission == 'edit'
+                                ? 'Quyền: Được sửa'
+                                : 'Quyền: Chỉ xem',
+                            style: TextStyle(
+                              color: share.permission == 'edit'
+                                  ? Colors.orange.shade800
+                                  : Colors.blueGrey,
+                            ),
+                          ),
+                          trailing: IconButton(
+                            icon: const Icon(
+                              Icons.delete_outline,
+                              color: Colors.red,
+                            ),
+                            tooltip: 'Thu hồi quyền chia sẻ',
+                            onPressed: () => _removeShare(share),
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              ],
+            ),
+          ),
         ),
       ),
     );

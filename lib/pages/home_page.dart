@@ -26,6 +26,7 @@ class _HomePageState extends State<HomePage> {
   String _searchQuery = '';
   DocumentType? _filterType;
   bool _onlyShared = false;
+  String? _selectedTag;
   bool _isLoading = false;
   List<DocumentModel> _documents = [];
 
@@ -330,76 +331,127 @@ class _HomePageState extends State<HomePage> {
       ),
       body: RefreshIndicator(
         onRefresh: _loadDocuments,
-        child: Column(
-          children: [
-            // Ô tìm kiếm
-            SearchField(
-              controller: _searchController,
-              onChanged: (value) {
-                _searchQuery = value;
-                _loadDocuments();
-              },
-              onClear: () {
-                _searchQuery = '';
-                _loadDocuments();
-              },
-            ),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final isWide = constraints.maxWidth >= 900;
+            final contentWidth = isWide
+                ? constraints.maxWidth.clamp(0.0, 1100.0)
+                : constraints.maxWidth;
 
-            // Bộ lọc chia sẻ và loại tài liệu
-            _buildFilterChips(),
-
-            // Gợi ý tài liệu (Đức hoàn thiện)
-            const RecommendationSection(),
-
-            const Divider(height: 1),
-
-            // Danh sách tài liệu
-            Expanded(
-              child: _isLoading
-                  ? const LoadingIndicator(message: 'Đang tải từ Supabase...')
-                  : _documents.isEmpty
-                  ? EmptyState(
-                      icon: Icons.description_outlined,
-                      title:
-                          _searchQuery.isNotEmpty ||
-                              _filterType != null ||
-                              _onlyShared
-                          ? 'Không tìm thấy tài liệu phù hợp'
-                          : 'Chưa có tài liệu nào',
-                      subtitle: _onlyShared
-                          ? 'Chưa có ai chia sẻ tài liệu cho bạn'
-                          : 'Bấm nút "Thêm tài liệu" để tải tệp lên Supabase Storage',
-                      action: !_onlyShared
-                          ? FilledButton.icon(
-                              onPressed: _openAddDocument,
-                              icon: const Icon(Icons.add),
-                              label: const Text('Thêm tài liệu'),
-                            )
-                          : null,
-                    )
-                  : ListView.builder(
-                      padding: const EdgeInsets.only(top: 6, bottom: 80),
-                      itemCount: _documents.length,
-                      itemBuilder: (context, index) {
-                        final doc = _documents[index];
-                        return DocumentTile(
-                          document: doc,
-                          currentUserId: currentUid,
-                          onTap: () => _openDocumentDetail(doc),
-                          onDelete: doc.isOwner(currentUid)
-                              ? () => _confirmDelete(doc)
-                              : null,
-                          onShare: doc.isOwner(currentUid)
-                              ? () => _openShareDialog(doc)
-                              : null,
-                        );
+            return Center(
+              child: SizedBox(
+                width: contentWidth,
+                child: Column(
+                  children: [
+                    // Ô tìm kiếm
+                    SearchField(
+                      controller: _searchController,
+                      onChanged: (value) {
+                        _searchQuery = value;
+                        _loadDocuments();
+                      },
+                      onClear: () {
+                        _searchQuery = '';
+                        _loadDocuments();
                       },
                     ),
-            ),
-          ],
+
+                    // Bộ lọc chia sẻ và loại tài liệu
+                    _buildFilterChips(),
+
+                    // Lọc theo tag trong các tài liệu đã tải theo bộ lọc hiện tại
+                    _buildTagFilterChips(),
+
+                    // Gợi ý tài liệu (Đức hoàn thiện)
+                    const RecommendationSection(),
+
+                    const Divider(height: 1),
+
+                    // Danh sách tài liệu
+                    Expanded(
+                      child: _isLoading
+                          ? const LoadingIndicator(
+                              message: 'Đang tải từ Supabase...',
+                            )
+                          : _visibleDocuments.isEmpty
+                          ? EmptyState(
+                              icon: Icons.description_outlined,
+                              title:
+                                  _searchQuery.isNotEmpty ||
+                                      _filterType != null ||
+                                      _onlyShared ||
+                                      _selectedTag != null
+                                  ? 'Không tìm thấy tài liệu phù hợp'
+                                  : 'Chưa có tài liệu nào',
+                              subtitle:
+                                  _onlyShared &&
+                                      _searchQuery.isEmpty &&
+                                      _filterType == null &&
+                                      _selectedTag == null
+                                  ? 'Chưa có ai chia sẻ tài liệu cho bạn'
+                                  : 'Bấm nút "Thêm tài liệu" để tải tệp lên Supabase Storage',
+                              action: !_onlyShared
+                                  ? FilledButton.icon(
+                                      onPressed: _openAddDocument,
+                                      icon: const Icon(Icons.add),
+                                      label: const Text('Thêm tài liệu'),
+                                    )
+                                  : null,
+                            )
+                          : isWide
+                          ? GridView.builder(
+                              padding: const EdgeInsets.fromLTRB(6, 6, 6, 80),
+                              gridDelegate:
+                                  SliverGridDelegateWithFixedCrossAxisCount(
+                                    crossAxisCount: contentWidth >= 1000
+                                        ? 3
+                                        : 2,
+                                    mainAxisExtent: 190,
+                                  ),
+                              itemCount: _visibleDocuments.length,
+                              itemBuilder: (context, index) {
+                                final doc = _visibleDocuments[index];
+                                return _buildDocumentTile(doc, currentUid);
+                              },
+                            )
+                          : ListView.builder(
+                              padding: const EdgeInsets.only(
+                                top: 6,
+                                bottom: 80,
+                              ),
+                              itemCount: _visibleDocuments.length,
+                              itemBuilder: (context, index) {
+                                final doc = _visibleDocuments[index];
+                                return _buildDocumentTile(doc, currentUid);
+                              },
+                            ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
         ),
       ),
     );
+  }
+
+  Widget _buildDocumentTile(DocumentModel doc, String? currentUid) {
+    return DocumentTile(
+      document: doc,
+      currentUserId: currentUid,
+      onTap: () => _openDocumentDetail(doc),
+      onDelete: doc.isOwner(currentUid) ? () => _confirmDelete(doc) : null,
+      onShare: doc.isOwner(currentUid) ? () => _openShareDialog(doc) : null,
+    );
+  }
+
+  List<DocumentModel> get _visibleDocuments {
+    final selectedTag = _selectedTag;
+    if (selectedTag == null) return _documents;
+    return _documents
+        .where((document) => document.tags.contains(selectedTag))
+        .toList();
   }
 
   /// Chips lọc theo sở hữu và loại tài liệu
@@ -412,12 +464,14 @@ class _HomePageState extends State<HomePage> {
           children: [
             // Lọc: Tất cả
             FilterChip(
-              selected: !_onlyShared && _filterType == null,
+              selected:
+                  !_onlyShared && _filterType == null && _selectedTag == null,
               label: const Text('Tất cả'),
               onSelected: (_) {
                 setState(() {
                   _onlyShared = false;
                   _filterType = null;
+                  _selectedTag = null;
                 });
                 _loadDocuments();
               },
@@ -450,6 +504,52 @@ class _HomePageState extends State<HomePage> {
                       _filterType = _filterType == type ? null : type;
                     });
                     _loadDocuments();
+                  },
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTagFilterChips() {
+    final tags = _documents.expand((document) => document.tags).toSet();
+    final selectedTag = _selectedTag;
+    if (selectedTag != null) tags.add(selectedTag);
+    final sortedTags = tags.toList()..sort();
+    if (sortedTags.isEmpty) return const SizedBox.shrink();
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          children: [
+            const Padding(
+              padding: EdgeInsets.only(right: 8),
+              child: Text(
+                'Tag:',
+                style: TextStyle(fontWeight: FontWeight.w600),
+              ),
+            ),
+            FilterChip(
+              selected: _selectedTag == null,
+              label: const Text('Tất cả'),
+              onSelected: (_) => setState(() => _selectedTag = null),
+            ),
+            const SizedBox(width: 8),
+            ...sortedTags.map(
+              (tag) => Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: FilterChip(
+                  selected: _selectedTag == tag,
+                  label: Text(tag),
+                  onSelected: (_) {
+                    setState(() {
+                      _selectedTag = _selectedTag == tag ? null : tag;
+                    });
                   },
                 ),
               ),
