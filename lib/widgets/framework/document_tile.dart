@@ -85,7 +85,9 @@ class DocumentTile extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 5),
-            Row(
+            Wrap(
+              spacing: 6,
+              runSpacing: 4,
               children: [
                 // Badge loại tài liệu
                 Container(
@@ -106,7 +108,6 @@ class DocumentTile extends StatelessWidget {
                     ),
                   ),
                 ),
-                const SizedBox(width: 6),
                 // Badge quyền sở hữu hoặc được chia sẻ
                 Container(
                   padding: const EdgeInsets.symmetric(
@@ -132,7 +133,6 @@ class DocumentTile extends StatelessWidget {
                     ),
                   ),
                 ),
-                const Spacer(),
                 // Ngày cập nhật
                 Text(
                   _formatDate(document.updatedAt),
@@ -140,6 +140,29 @@ class DocumentTile extends StatelessWidget {
                 ),
               ],
             ),
+            if (document.tags.isNotEmpty) ...[
+              const SizedBox(height: 6),
+              Wrap(
+                spacing: 6,
+                runSpacing: 2,
+                children: document.tags.take(3).map((tag) {
+                  return Chip(
+                    label: Text(tag),
+                    labelStyle: TextStyle(
+                      fontSize: 10,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                    backgroundColor: Theme.of(context)
+                        .colorScheme
+                        .surfaceContainerHighest,
+                    side: BorderSide.none,
+                    visualDensity: VisualDensity.compact,
+                    materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                  );
+                }).toList(),
+              ),
+            ],
           ],
         ),
         isThreeLine: true,

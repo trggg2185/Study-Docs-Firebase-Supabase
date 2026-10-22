@@ -30,12 +30,14 @@ class DocumentStruct {
     String? query,
     DocumentType? type,
     String? subject,
+    List<String>? tags,
     bool onlyShared = false,
   }) async {
     final docs = await _service.getDocuments(
       query: query,
       type: type,
       subject: subject,
+      tags: tags,
       onlyShared: onlyShared,
     );
     if (!_documentsController.isClosed) {
@@ -58,6 +60,10 @@ class DocumentStruct {
     File? file,
     Uint8List? fileBytes,
     String? customFileName,
+    List<String> tags = const [],
+    String? locationName,
+    double? latitude,
+    double? longitude,
   }) async {
     _validateTitle(title);
     _validateSubject(subject);
@@ -98,6 +104,10 @@ class DocumentStruct {
       filePath: filePath,
       fileName: fileName,
       fileSize: fileSize,
+      tags: tags,
+      locationName: locationName,
+      latitude: latitude,
+      longitude: longitude,
     );
 
     // Cập nhật lại stream
@@ -115,6 +125,10 @@ class DocumentStruct {
     File? newFile,
     Uint8List? newFileBytes,
     String? customFileName,
+    List<String> tags = const [],
+    String? locationName,
+    double? latitude,
+    double? longitude,
   }) async {
     _validateTitle(title);
     _validateSubject(subject);
@@ -154,6 +168,10 @@ class DocumentStruct {
       filePath: filePath,
       fileName: fileName,
       fileSize: fileSize,
+      tags: tags,
+      locationName: locationName,
+      latitude: latitude,
+      longitude: longitude,
     );
 
     await fetchDocuments();

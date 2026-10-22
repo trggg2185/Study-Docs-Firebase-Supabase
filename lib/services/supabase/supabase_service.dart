@@ -2,7 +2,6 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:firebase_auth/firebase_auth.dart' as fb;
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:path/path.dart' as p;
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -29,6 +28,40 @@ class SupabaseService {
   fb.User? get currentUser => _auth.currentUser;
   String? get currentUserId => _auth.currentUser?.uid;
   String? get currentUserEmail => _auth.currentUser?.email;
+
+  /// Tạo/cập nhật hồ sơ sau khi đăng nhập (id = Firebase UID).
+  Future<void> ensureProfile({
+    required String uid,
+    required String email,
+    String fullName = '',
+  }) async {
+    final data = <String, dynamic>{'id': uid, 'email': email};
+    if (fullName.trim().isNotEmpty) {
+      data['full_name'] = fullName.trim();
+    }
+    await _client.from('profiles').upsert(data, onConflict: 'id');
+  }
+
+  /// Lấy hồ sơ người dùng, null nếu chưa có.
+  Future<Map<String, dynamic>?> getProfile(String uid) async {
+    final response = await _client
+        .from('profiles')
+        .select()
+        .eq('id', uid)
+        .maybeSingle();
+    return response == null ? null : Map<String, dynamic>.from(response);
+  }
+
+  Future<void> updateInterests(String uid, List<String> interests) async {
+    await _client
+        .from('profiles')
+        .update({'interests': interests})
+        .eq('id', uid);
+  }
+
+  Future<void> updateFcmToken(String uid, String? token) async {
+    await _client.from('profiles').update({'fcm_token': token}).eq('id', uid);
+  }
 
   // ===========================================================================
   // 2. SUPABASE STORAGE (LƯU TRỮ TỆP TIN TRÊN CLOUD)
@@ -111,6 +144,7 @@ class SupabaseService {
     String? query,
     DocumentType? type,
     String? subject,
+    List<String>? tags,
     bool onlyShared = false,
   }) async {
     final myEmail = currentUserEmail?.toLowerCase();
@@ -129,6 +163,9 @@ class SupabaseService {
     }
     if (query != null && query.trim().isNotEmpty) {
       request = request.ilike('title', '%${query.trim()}%');
+    }
+    if (tags != null && tags.isNotEmpty) {
+      request = request.contains('tags', tags);
     }
 
     final response = await request.order('updated_at', ascending: false);
@@ -214,6 +251,10 @@ class SupabaseService {
     String filePath = '',
     String fileName = '',
     int fileSize = 0,
+    List<String> tags = const [],
+    String? locationName,
+    double? latitude,
+    double? longitude,
   }) async {
     final uid = currentUserId;
     if (uid == null) throw StateError('Vui lòng đăng nhập');
@@ -229,6 +270,10 @@ class SupabaseService {
       'file_size': fileSize,
       'owner_id': uid,
       'owner_email': currentUserEmail ?? '',
+      'tags': tags,
+      'location_name': locationName,
+      'latitude': latitude,
+      'longitude': longitude,
       'updated_at': DateTime.now().toIso8601String(),
     };
 
@@ -252,12 +297,20 @@ class SupabaseService {
     String? filePath,
     String? fileName,
     int? fileSize,
+    List<String> tags = const [],
+    String? locationName,
+    double? latitude,
+    double? longitude,
   }) async {
     final updateMap = <String, dynamic>{
       'title': title.trim(),
       'description': description.trim(),
       'type': type.name,
       'subject': subject.trim(),
+      'tags': tags,
+      'location_name': locationName,
+      'latitude': latitude,
+      'longitude': longitude,
       'updated_at': DateTime.now().toIso8601String(),
     };
 
