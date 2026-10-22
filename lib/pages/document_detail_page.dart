@@ -450,9 +450,16 @@ class _DocumentDetailPageState extends State<DocumentDetailPage> {
                   const SizedBox(height: 16),
                 ],
 
-                // Vị trí vật lý (Đức hoàn thiện)
-                DocumentLocationCard(document: doc),
-                const SizedBox(height: 16),
+                // Vị trí vật lý
+                if (doc.hasLocation ||
+                    (doc.locationName?.trim().isNotEmpty ?? false)) ...[
+                  DocumentLocationCard(
+                    locationName: doc.locationName,
+                    latitude: doc.latitude,
+                    longitude: doc.longitude,
+                  ),
+                  const SizedBox(height: 16),
+                ],
 
                 // Card tệp tin Supabase Storage
                 if (doc.fileUrl.isNotEmpty) ...[
@@ -550,7 +557,7 @@ class _DocumentDetailPageState extends State<DocumentDetailPage> {
                   const SizedBox(height: 16),
                 ],
 
-                // Yêu cầu mượn tài liệu (Đại hoàn thiện)
+                // Yêu cầu mượn tài liệu
                 if (!isOwner) ...[
                   BorrowRequestButton(document: doc),
                   const SizedBox(height: 16),

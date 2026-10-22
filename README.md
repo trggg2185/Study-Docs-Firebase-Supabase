@@ -1,35 +1,31 @@
 # StudyDocs — Quản lý tài liệu học tập (Flutter + Firebase + Supabase)
 
-> **Nhóm 6** · Cập nhật: 21/10/2026
-> Trạng thái: **nền tảng cơ bản đã chạy**; còn 6 nhóm việc nâng cấp để đạt yêu cầu môn học.
+> **Nhóm 6** · Cập nhật: 22/10/2026
+> Trạng thái: **đã merge đủ 4 thành viên**; code đã có tag, vị trí/bản đồ, mượn tài liệu, gợi ý, realtime và responsive.
 >
 > **Quy tắc quan trọng:** mỗi thành viên làm trên **nhánh riêng**, mở Pull Request để Trưởng review và merge.
 > **Tuyệt đối không push trực tiếp lên `main`.**
 >
-> **Sprint 0 (21/10):** code nền tảng đã xong trên nhánh `feature/truong-foundation`
-> (model tag/vị trí, service, profile, 4 widget stub, test). Trưởng còn phải:
-> chạy `docs/upgrade-v2.sql` trên Supabase → push/merge nhánh → mới thông báo thành viên bắt đầu.
-> RLS thật (Third-Party Auth) làm sau, xem mục 9.3.
+> **Việc còn lại trước khi demo:** chạy `docs/upgrade-v2.sql` trên Supabase → test 2 tài khoản →
+> build APK/Web. RLS thật (Third-Party Auth) vẫn là hạn chế đã biết, xem mục 9.3.
 
 ---
 
 ## 0. TL;DR — đọc nhanh 1 phút
 
 **Đã có:**
-- Đăng nhập/đăng ký bằng Firebase Auth (Email/Password + Google).
-- CRUD tài liệu, upload file lên Supabase Storage, tìm kiếm theo tiêu đề, lọc theo loại, chia sẻ trực tiếp theo email (`view`/`edit`), xoá file + dữ liệu.
-- Giao diện tiếng Việt, Material 3, sáng/tối, chạy Android/iOS/Web.
+- Đăng nhập/đăng ký bằng Firebase Auth (Email/Password + Google), tạo profile Supabase, lấy FCM token.
+- CRUD tài liệu, upload file lên Supabase Storage, tìm kiếm, lọc theo loại/tag, chia sẻ `view`/`edit`.
+- **Tag** (tối đa 5), **vị trí + bản đồ OpenStreetMap**, **yêu cầu mượn → duyệt/từ chối → trả**.
+- **Gợi ý tài liệu** theo tag/môn/loại; **realtime** cho yêu cầu mượn.
+- Giao diện tiếng Việt, Material 3, sáng/tối; Home dạng grid trên Web, list trên mobile.
+- 37 unit/widget test; build Web + APK release đã chạy được.
 
-**Còn thiếu so với đề bài:**
-1. **Tag** tài liệu (hiện chỉ có `type` + `subject` dạng text).
-2. **Vị trí/bản đồ** của tài liệu vật lý.
-3. **Luồng mượn tài liệu** (yêu cầu → duyệt/từ chối → trả), hiện chỉ có chia sẻ trực tiếp.
-4. **Gợi ý tài liệu** theo tag/sở thích.
-5. **Responsive thực sự cho Web** + kiểm thử & đóng gói sản phẩm.
-6. (Bắt buộc ở mức tối thiểu) **Firebase Messaging** + thông báo realtime khi có yêu cầu mượn.
-
-**Phân công ngắn gọn:** xem [mục 11](#11-phân-công-4-thành-viên).
-**AI agent đọc mục 10, 11, 15 trước khi sửa code.**
+**Còn phải làm (chủ yếu ngoài code):**
+1. Chạy `docs/upgrade-v2.sql` trên Supabase (bắt buộc, nếu chưa chạy thì thêm/sửa tài liệu sẽ lỗi).
+2. Test thủ công 2 tài khoản: share, mượn, duyệt, trả, realtime, tag, bản đồ.
+3. RLS thật + Third-Party Auth (timebox) hoặc ghi rõ hạn chế trong báo cáo.
+4. Build/kiểm tra bản release cuối và chuẩn bị demo.
 
 **Không làm (để tránh phình to):** chat, versioning file, offline sync/Drift, phân quyền admin, thanh toán, server gửi push tự động, Google Maps/geocoding, reset mật khẩu, xác thực email.
 
@@ -72,10 +68,11 @@ flutter analyze
 flutter test
 ```
 
-- Database hiện tại được tạo bằng `supabase_schema.sql` (chạy trong Supabase SQL Editor).
-- Bản nâng cấp sẽ dùng thêm `docs/upgrade-v2.sql` (Trưởng tạo ở Sprint 0, **chưa có**).
+- Database hiện tại được tạo bằng `supabase_schema.sql`, sau đó chạy thêm `docs/upgrade-v2.sql` (bắt buộc cho tag/vị trí/mượn).
+- Nếu database đã có từ trước, **chỉ cần chạy `docs/upgrade-v2.sql`**; file này an toàn để chạy lại.
 - `android/app/google-services.json` đã có. iOS cần chạy trên macOS mới build được.
 - File `web/sqlite3.wasm` và `web/drift_worker.js` phục vụ Drift (legacy, không dùng trong luồng chính).
+- Build release: `flutter build apk --release` và `flutter build web --release`.
 
 ---
 
@@ -87,14 +84,14 @@ flutter test
 | Auth | Firebase Auth | Email/Password + Google |
 | Database | Supabase PostgreSQL | `documents`, `document_shares`, `profiles` |
 | Storage | Supabase Storage | bucket `study-docs`, public URL |
-| Realtime | Chưa dùng Supabase Realtime | `DocumentStruct` chỉ có `StreamController` nội bộ, **không phải realtime** |
+| Realtime | Supabase Realtime | `borrow_requests`: subscribe trong `BorrowRequestsPage` và `BorrowRequestButton` |
 | Local DB (legacy) | Drift + SQLite | Có code nhưng **không nối vào app** |
 | Firebase Firestore/Storage (legacy) | `cloud_firestore`, `firebase_storage` | Có service nhưng **không nối vào app** |
 | Chọn file | `file_picker` | Web dùng bytes, mobile dùng `File` |
 | Mở file | `url_launcher` | Mở URL public trên trình duyệt |
 | ID | `uuid` | Dùng cho Drift category (legacy) |
 
-**Sẽ thêm ở Sprint 0 (Trưởng):** `flutter_map`, `latlong2`, `firebase_messaging`.
+**Đã thêm:** `flutter_map`, `latlong2`, `firebase_messaging`.
 Không tự thêm package khác khi chưa trao đổi với Trưởng.
 
 ---
@@ -106,26 +103,26 @@ Không tự thêm package khác khi chưa trao đổi với Trưởng.
 | 1 | Đăng ký / đăng nhập email | ✅ | Firebase Auth |
 | 2 | Đăng nhập Google | ✅ | Web popup, mobile `google_sign_in` |
 | 3 | Đăng xuất | ✅ | Menu tài khoản ở Home |
-| 4 | Xem danh sách tài liệu | ✅ | Tải một lần từ Supabase, có pull-to-refresh |
+| 4 | Xem danh sách tài liệu | ✅ | Supabase, pull-to-refresh, grid trên Web |
 | 5 | Thêm tài liệu + upload file | ✅ | File lưu Supabase Storage |
 | 6 | Sửa tài liệu + thay file | ✅ | Upload file mới nếu chọn |
 | 7 | Xoá tài liệu + file | ✅ | Xoá Storage trước, sau đó xoá row |
-| 8 | Tìm kiếm | ✅ | Chỉ tìm theo `title` (`ilike`) |
+| 8 | Tìm kiếm | ✅ | Theo `title` (`ilike`) |
 | 9 | Lọc theo loại | ✅ | `lecture`, `exercise`, `reference` |
 | 10 | Lọc "được chia sẻ với tôi" | ✅ | Lọc phía client |
-| 11 | Chia sẻ trực tiếp theo email | ✅ | Quyền `view` / `edit`, không cần người nhận đồng ý |
+| 11 | Chia sẻ trực tiếp theo email | ✅ | Quyền `view` / `edit` |
 | 12 | Xem/thu hồi người được chia sẻ | ✅ | Chỉ chủ sở hữu |
 | 13 | Xem chi tiết + mở file | ✅ | Mở URL public bằng trình duyệt |
 | 14 | Theme sáng/tối | ✅ | Theo hệ thống |
-| 15 | Responsive Web | ⚠️ Một phần | Login có `maxWidth: 420`; Home vẫn là danh sách 1 cột |
-| 16 | Tag | ❌ | Chưa có |
-| 17 | Vị trí/bản đồ | ❌ | Chưa có |
-| 18 | Yêu cầu mượn / duyệt / trả | ❌ | Chưa có |
-| 19 | Gợi ý tài liệu | ❌ | Chưa có |
-| 20 | Thông báo / Firebase Messaging | ❌ | Chưa có |
-| 21 | Realtime | ❌ | Chưa subscribe Supabase Realtime |
-| 22 | Test đầy đủ | ⚠️ Yếu | 2 file test logic + 1 test placeholder |
-| 23 | Đóng gói APK/Web | ❌ | Chưa build release |
+| 15 | Responsive Web | ✅ | Grid ≥ 900px; form/detail giới hạn 800px |
+| 16 | Tag | ✅ | Nhập/sửa, chip, lọc theo tag |
+| 17 | Vị trí/bản đồ | ✅ | Chọn trên OSM, lưu toạ độ, mở bản đồ |
+| 18 | Yêu cầu mượn / duyệt / trả | ✅ | 2 tab, realtime, tạo/thu hồi share khi duyệt/trả |
+| 19 | Gợi ý tài liệu | ✅ | Theo tag/môn/loại; fallback tài liệu mới nhất |
+| 20 | Thông báo / Firebase Messaging | ✅ | Lấy FCM token sau đăng nhập; realtime trong app |
+| 21 | Realtime | ✅ | `borrow_requests` (cần chạy SQL) |
+| 22 | Test | ✅ | 37 test: model, tag, location, borrow, recommendation, widget |
+| 23 | Đóng gói APK/Web | ✅ | Đã build; build lại trước khi nộp |
 
 ---
 
@@ -199,16 +196,18 @@ Không tự thêm package khác khi chưa trao đổi với Trưởng.
 
 ## 6. Mô hình dữ liệu hiện tại (Supabase)
 
-### 6.1. Bảng `profiles` — có schema nhưng **chưa dùng**
+### 6.1. Bảng `profiles` — đã dùng
 
 | Cột | Kiểu | Ghi chú |
 |---|---|---|
 | `id` | `text` PK | Firebase UID |
 | `email` | `text` | |
 | `full_name` | `text` | |
+| `interests` | `text[]` | dự phòng cho gợi ý |
+| `fcm_token` | `text` | token Firebase Messaging |
 | `created_at` | `timestamptz` | |
 
-Không có code nào insert/update bảng này.
+`ensureProfile` tạo/cập nhật row sau đăng nhập; `setupFcmToken` lưu token.
 
 ### 6.2. Bảng `documents`
 
@@ -225,10 +224,14 @@ Không có code nào insert/update bảng này.
 | `file_size` | `bigint` | bytes |
 | `owner_id` | `text` | Firebase UID |
 | `owner_email` | `text` | |
+| `tags` | `text[]` | tối đa 5 tag chữ thường |
+| `location_name` | `text` | tên vị trí, có thể null |
+| `latitude` | `double precision` | nullable |
+| `longitude` | `double precision` | nullable |
 | `created_at` | `timestamptz` | |
 | `updated_at` | `timestamptz` | |
 
-**Chưa có:** `tags`, `location_name`, `latitude`, `longitude`.
+**Đã có:** `tags`, `location_name`, `latitude`, `longitude` (sau khi chạy `docs/upgrade-v2.sql`).
 **Không có** cột `category_id` dù model/Drift/Firestore có nhắc tới → không dùng `categoryId` cho Supabase.
 
 ### 6.3. Bảng `document_shares`
@@ -243,13 +246,28 @@ Không có code nào insert/update bảng này.
 
 Ràng buộc unique `(document_id, shared_with_email)`.
 
-### 6.4. Storage
+### 6.4. Bảng `borrow_requests`
+
+| Cột | Kiểu | Ghi chú |
+|---|---|---|
+| `id` | `uuid` PK | |
+| `document_id` | `uuid` FK → `documents.id` | cascade delete |
+| `owner_id` | `text` | Firebase UID chủ tài liệu |
+| `requester_id` | `text` | Firebase UID người mượn |
+| `requester_email` | `text` | dùng để tạo share khi duyệt |
+| `message` | `text` | lời nhắn |
+| `status` | `text` | `pending` / `approved` / `rejected` / `returned` |
+| `created_at`, `responded_at` | `timestamptz` | |
+
+Unique index chỉ chặn 2 yêu cầu `pending` cùng lúc cho một tài liệu/người.
+
+### 6.5. Storage
 
 - Bucket `study-docs`, **public**.
 - Đường dẫn: `<uid>/<timestamp>_<tên_file>`.
 - Policy storage hiện cho phép anon upload/read/update/delete.
 
-### 6.5. Bảo mật hiện tại (quan trọng)
+### 6.6. Bảo mật hiện tại (quan trọng)
 
 `supabase_schema.sql` đang bật RLS nhưng policy là `using (true)` / `with check (true)` cho `anon`:
 
@@ -282,45 +300,63 @@ test_flutter/
 │   │   ├── converters/
 │   │   │   └── document_converter.dart
 │   │   └── models/
+│   │       ├── borrow_request_model.dart
 │   │       ├── category_model.dart
 │   │       ├── document_model.dart
 │   │       └── document_share_model.dart
 │   ├── pages/
 │   │   ├── login_page.dart
 │   │   ├── home_page.dart
+│   │   ├── borrow_requests_page.dart
 │   │   ├── document_form_page.dart
-│   │   └── document_detail_page.dart
+│   │   ├── document_detail_page.dart
+│   │   └── location_picker_page.dart
 │   ├── services/
 │   │   ├── firebase/
 │   │   │   ├── auth_service.dart
 │   │   │   ├── firestore_service.dart # LEGACY
 │   │   │   └── storage_service.dart   # LEGACY
 │   │   └── supabase/
+│   │       ├── borrow_service.dart
 │   │       ├── supabase_config.dart
 │   │       └── supabase_service.dart
 │   ├── struct/
 │   │   ├── document_struct.dart
+│   │   ├── location_data.dart
+│   │   ├── recommendation_struct.dart
 │   │   ├── search_struct.dart
 │   │   ├── category_struct.dart       # LEGACY
 │   │   └── cloud_document_struct.dart # LEGACY
+│   ├── utils/
+│   │   └── tag_utils.dart
 │   └── widgets/
 │       ├── framework/
 │       │   ├── app_scaffold.dart
+│       │   ├── borrow_request_button.dart
+│       │   ├── document_location_card.dart
 │       │   ├── document_tile.dart
+│       │   ├── location_field.dart
+│       │   ├── recommendation_section.dart
 │       │   └── search_field.dart
 │       └── util/
 │           ├── empty_state.dart
 │           └── loading_indicator.dart
 ├── test/
-│   ├── document_struct_test.dart      # test model + DocumentStruct (fake service)
-│   ├── cloud_document_test.dart       # test model/serialization
-│   └── widget_test.dart               # placeholder (1 + 1 = 2)
+│   ├── borrow_test.dart
+│   ├── cloud_document_test.dart
+│   ├── document_struct_test.dart
+│   ├── document_tile_test.dart
+│   ├── location_data_test.dart
+│   ├── recommendation_struct_test.dart
+│   ├── tag_utils_test.dart
+│   └── widget_test.dart
 ├── docs/
 │   ├── about-firebase.md
 │   ├── firebase-setup.md
 │   ├── security-rules.md
 │   ├── comparison.md
-│   └── evaluation.md
+│   ├── evaluation.md
+│   └── upgrade-v2.sql
 ├── web/
 │   ├── index.html
 │   ├── manifest.json
@@ -336,27 +372,27 @@ test_flutter/
 └── README.md                          # file này
 ```
 
-**Kích thước code chính:** ~5.500 dòng Dart, trong đó ~1.400 dòng generated Drift.
-**File lớn nhất:** `document_detail_page.dart` (672 dòng), `home_page.dart` (458), `document_form_page.dart` (412).
+**Kích thước code chính:** ~6.500 dòng Dart, trong đó ~1.400 dòng generated Drift.
+**File lớn nhất:** `document_detail_page.dart` (724 dòng), `borrow_requests_page.dart` (747), `home_page.dart` (579).
 
 ---
 
 ## 8. Đối chiếu đề bài với hiện trạng
 
-| Yêu cầu đề bài | Hiện trạng | Đánh giá | Việc cần làm |
-|---|---|---|---|
-| Kiến trúc Firebase (Auth/Messaging) + Supabase (DB/Storage) | Firebase Auth + Supabase DB/Storage đã chạy; Firestore/Storage/Drift là legacy; **chưa có Messaging** | ⚠️ 60% | Giữ kiến trúc hiện tại; thêm FCM token + thông báo realtime |
-| UI đa nền tảng, responsive Mobile + Web | Chạy Web nhưng Home 1 cột; form/detail full-width; chưa tối ưu desktop | ❌ | Breakpoint 900px: grid trên Web, list trên mobile; giới hạn chiều rộng form/detail |
-| Phân loại bằng Tag | Chỉ có `type` (3 loại) + `subject` text | ❌ | Thêm `tags text[]`, nhập/sửa, hiển thị, lọc |
-| Bản đồ/vị trí tài liệu | Không có | ❌ | Thêm `location_name`, `latitude`, `longitude`; chọn trên bản đồ OSM; hiển thị ở chi tiết |
-| Chia sẻ/mượn tài liệu | Chia sẻ trực tiếp qua email (view/edit) đã có; **không có yêu cầu/duyệt/trả** | ⚠️ 40% | Bảng `borrow_requests` + màn hình yêu cầu + duyệt/từ chối/trả |
-| Recommendation | Không có | ❌ | Chấm điểm theo tag/môn/loại, hiển thị "Gợi ý cho bạn" |
-| Dữ liệu thời gian thực | Chỉ load lại sau thao tác | ❌ | Supabase Realtime cho `borrow_requests` (và có thể `documents`) |
-| Kiểm thử toàn diện | 2 test logic + 1 placeholder | ❌ | Test tag, recommendation, borrow, location, responsive; test tay 2 tài khoản |
-| Đóng gói sản phẩm | Chưa build release | ❌ | APK + Web build + báo cáo/slide/demo |
-| Bảo mật | RLS `true`, bucket public, lọc client | ❌ | Supabase Third-Party Auth với Firebase + RLS thật (timebox) |
+| Yêu cầu đề bài | Hiện trạng | Đánh giá |
+|---|---|---|
+| Kiến trúc Firebase (Auth/Messaging) + Supabase (DB/Storage) | Firebase Auth + FCM token + Supabase DB/Storage/Realtime | ✅ |
+| UI đa nền tảng, responsive Mobile + Web | Grid ≥900px, list mobile; form/detail giới hạn 800px | ✅ |
+| Phân loại bằng Tag | `tags text[]`, nhập/sửa, hiển thị, lọc | ✅ |
+| Bản đồ/vị trí tài liệu | `location_name`, `latitude`, `longitude`; chọn OSM; mở bản đồ | ✅ |
+| Chia sẻ/mượn tài liệu | Share trực tiếp + `borrow_requests` + duyệt/từ chối/trả | ✅ |
+| Recommendation | Chấm điểm tag/môn/loại, fallback tài liệu mới | ✅ |
+| Dữ liệu thời gian thực | Supabase Realtime cho `borrow_requests` | ✅ |
+| Kiểm thử | 37 test; cần test tay 2 tài khoản | ✅/⚠️ |
+| Đóng gói sản phẩm | APK + Web build được; build lại trước khi nộp | ✅ |
+| Bảo mật | RLS đang mở, lọc client; Third-Party Auth chưa làm | ❌ (hạn chế đã biết) |
 
-**Kết luận:** dự án đã có "xương sống" đúng hướng (Auth Firebase + Supabase). Không cần viết lại; chỉ cần **mở rộng schema + thêm 4 module nhỏ + responsive + test/đóng gói**.
+**Kết luận:** đã đủ các chức năng chính của đề bài. Việc còn lại là **chạy SQL**, test thật 2 tài khoản, build bản cuối và xử lý/ghi rõ hạn chế RLS.
 
 ---
 
@@ -388,10 +424,10 @@ test_flutter/
 - Firebase giữ **Auth**; thêm **Messaging** ở mức token + nhận test message.
 - **Không** làm server gửi push tự động (cần service account/Edge Function) — nằm ngoài phạm vi bài nhỏ.
 - Thông báo trong app dùng **Supabase Realtime** trên `borrow_requests`.
-- Bản đồ dùng **OpenStreetMap qua `flutter_map`** — không cần API key.
+- Bản đồ dùng **tile OpenStreetMap trực tiếp** trong `location_picker_page.dart` — không cần API key.
 - Recommendation chạy **client-side** trên danh sách tài liệu người dùng được xem — đủ cho bài tập, không cần ML.
 
-### 9.2. Schema bổ sung (Trưởng tạo `docs/upgrade-v2.sql` và chạy)
+### 9.2. Schema bổ sung (đã có trong `docs/upgrade-v2.sql`, cần chạy trên Supabase)
 
 ```sql
 -- 1. Tag + vị trí cho tài liệu
@@ -496,8 +532,8 @@ using (owner_id = auth.jwt()->>'sub');
 
 ## 10. Hợp đồng tích hợp (để 4 người làm song song không conflict)
 
-> Trưởng tạo các field/method/stub dưới đây ở **Sprint 0** và merge trước.
-> Thành viên khác **giữ đúng tên**, không tự đổi signature.
+> Các field/method/stub dưới đây đã được tạo ở **Sprint 0** và merge vào `main`.
+> Giữ đúng tên/signature khi sửa để không phá các màn hình khác.
 
 ### 10.1. Field model
 
@@ -633,8 +669,8 @@ Công thức chấm điểm (đơn giản, dễ test):
 - Mỗi tag trùng: `+3 × weight` (weight = số tài liệu của tôi có tag đó, tối đa 3).
 - Cùng `subject`: `+2`.
 - Cùng `type`: `+1`.
-- Không gợi ý tài liệu của chính mình; không gợi ý tài liệu đã có `sharedPermission`? (vẫn có thể gợi ý, nhưng ưu tiên tài liệu chưa xem — bản đơn giản: loại tài liệu của mình).
-- Điểm bằng 0 → không hiển thị.
+- Không gợi ý tài liệu của chính mình; tài liệu đã share vẫn có thể được gợi ý.
+- Nếu không có tài liệu nào đạt điểm > 0 (người dùng mới), fallback về các tài liệu mới nhất của người khác.
 
 ### 10.5. Widget stub do Trưởng chèn sẵn
 
@@ -667,7 +703,7 @@ Stub ban đầu chỉ là `const SizedBox.shrink()` (hoặc widget rỗng) để
 
 ### Nguyên tắc chung
 
-- Mỗi người **1 nhánh riêng**, tạo từ `main` **sau khi Trưởng merge Sprint 0**.
+- Mỗi người **1 nhánh riêng**, tạo từ `main` (Sprint 0 đã merge).
 - Không push `main`. Không merge PR của người khác.
 - Mỗi PR: mô tả ngắn, ảnh chụp màn hình (nếu có UI), đã chạy `flutter analyze` + `flutter test`.
 - Commit nhỏ, message tiếng Việt hoặc tiếng Anh đều được, ví dụ: `feat: them tag cho tai lieu`.
@@ -675,36 +711,30 @@ Stub ban đầu chỉ là `const SizedBox.shrink()` (hoặc widget rỗng) để
 
 ### 11.1. Nguyễn Thế Trưởng — Leader / Nền tảng & tích hợp
 
-**Nhánh:** `feature/truong-foundation`
-**Điều kiện:** làm và merge **trước**, sau đó thông báo nhóm bắt đầu.
+**Nhánh:** `feature/truong-foundation` (đã merge)
+**Trạng thái:** hoàn thành phần nền tảng và tích hợp cuối.
 
-**Sprint 0 — làm ngay (1 ngày):**
-1. Tạo `docs/upgrade-v2.sql` theo mục 9.2, chạy trên Supabase, xác nhận cột/bảng bằng SQL Editor.
-2. Thêm dependency: `flutter pub add flutter_map latlong2 firebase_messaging`.
-3. Mở rộng `DocumentModel` (`tags`, `locationName`, `latitude`, `longitude`) + `fromMap`/`toMap`/`copyWith`.
-4. Mở rộng `SupabaseService` đúng hợp đồng mục 10.2 (tag, location, profile, FCM token).
-5. Thêm `ensureProfile` gọi sau khi đăng nhập (trong `AuthGate` hoặc `main`) để bảng `profiles` có dữ liệu.
-6. Chèn 4 widget stub (mục 10.5) vào Home/Form/Detail, đảm bảo app vẫn chạy.
-7. Cập nhật `document_struct.dart` nhận field mới.
-8. Chạy `flutter analyze` + `flutter test`, merge.
+**Đã làm:**
+1. Tạo `docs/upgrade-v2.sql` (tag, vị trí, profile, `borrow_requests`, Realtime publication); **chưa chạy trên project Supabase thật**.
+2. Thêm `flutter_map`, `latlong2`, `firebase_messaging`.
+3. Mở rộng model/service/profile/FCM token.
+4. Tạo widget stub và merge lần lượt 4 nhánh.
+5. Sửa lỗi merge, nối `BorrowRequestsPage`, provider `BorrowService`, gợi ý, quyền xem tài liệu.
+6. `flutter analyze` 0 issue; 37 test pass; build APK/Web.
 
-**Sprint 1 — bảo mật (timebox 60–90 phút):**
-9. Bật Supabase Third-Party Auth với Firebase + `accessToken` callback + RLS thật (mục 9.3).
-10. Test bằng 2 tài khoản. Nếu bế tắc: ghi rõ hạn chế, quay lại việc khác, không block nhóm.
+**Còn lại (ngoài code):**
+- Chạy SQL trên Supabase nếu chưa chạy.
+- Test tay 2 tài khoản: share, mượn, duyệt, trả, realtime, bản đồ.
+- Quyết định làm hoặc ghi rõ hạn chế RLS/Third-Party Auth.
+- Build lại APK/Web trước khi nộp.
 
-**Sprint 2 — tích hợp & đóng gói:**
-11. Review/merge theo thứ tự: **Hà → Đại → Đức** (Hà trước vì sửa file UI chung).
-12. Thêm nút mở `BorrowRequestsPage` trên Home (sau khi Đại merge) và provider cho `BorrowService`/`RecommendationStruct`.
-13. Chạy lại `flutter analyze`, `flutter test`; sửa lỗi tích hợp.
-14. Build `flutter build apk --release` + `flutter build web --release`; test bản build.
-15. Cập nhật README (trạng thái, cách chạy, ảnh demo), chuẩn bị demo.
-
-**Definition of Done:**
-- [ ] SQL chạy thành công, cột mới đọc/ghi được.
-- [ ] App cũ không hỏng: đăng nhập, thêm/sửa/xoá, share vẫn chạy.
-- [ ] `flutter analyze` 0 issue, `flutter test` pass.
-- [ ] Stub compile, các nhánh khác bắt đầu được.
-- [ ] APK + Web build chạy được.
+**Definition of Done hiện tại:**
+- [x] Code merge, không còn lỗi biên dịch.
+- [x] `flutter analyze` 0 issue, `flutter test` pass.
+- [x] Có luồng tag, vị trí, mượn, gợi ý, responsive.
+- [ ] SQL chạy trên project Supabase thật.
+- [ ] Test tay 2 tài khoản trên bản release.
+- [ ] RLS thật (hoặc ghi rõ hạn chế trong báo cáo).
 
 ---
 
@@ -793,7 +823,7 @@ Stub ban đầu chỉ là `const SizedBox.shrink()` (hoặc widget rỗng) để
    - Nút "Chọn trên bản đồ" mở `LocationPickerPage`; hiển thị toạ độ đã chọn; nút xoá vị trí.
    - Trả giá trị qua callback; form lưu cùng tài liệu.
 2. Tạo `lib/pages/location_picker_page.dart`:
-   - `FlutterMap` + tile OpenStreetMap (không cần API key).
+   - Tile OpenStreetMap + `InteractiveViewer` (không cần API key).
    - Chạm để đặt marker; nút "Xác nhận"; hiển thị lat/lng.
    - Không cần GPS/geocoding/tìm kiếm địa chỉ.
 3. Hoàn thiện `DocumentLocationCard`:
@@ -848,8 +878,8 @@ git pull origin main
 git switch -c feature/<ten-nhanh>
 ```
 
-> Chỉ tạo nhánh **sau khi** Trưởng đã merge Sprint 0 và thông báo.
-> Nếu đã tạo nhánh trước đó: `git rebase origin/main` (hoặc merge `main` vào nhánh) rồi xử lý conflict.
+> `main` hiện đã có Sprint 0 và đủ 4 nhánh thành viên.
+> Nếu nhánh của bạn đã cũ: `git rebase origin/main` (hoặc merge `main` vào nhánh) rồi xử lý conflict.
 
 ### 12.2. Commit & push
 

@@ -25,17 +25,21 @@ class RecommendationStruct {
       types.add(document.type);
 
       for (final tag in _tagsFrom(document)) {
+        final normalizedTag = tag.trim().toLowerCase();
+        if (normalizedTag.isEmpty) continue;
         tagWeights.update(
-          tag,
+          normalizedTag,
           (weight) => weight < 3 ? weight + 1 : weight,
           ifAbsent: () => 1,
         );
       }
     }
 
+    final candidates = documents
+        .where((document) => !document.isOwner(currentUserId))
+        .toList();
     final ranked =
-        documents
-            .where((document) => !document.isOwner(currentUserId))
+        candidates
             .map(
               (document) => (
                 document: document,
@@ -52,6 +56,8 @@ class RecommendationStruct {
             .toList()
           ..sort((a, b) => b.score.compareTo(a.score));
 
+    // Người dùng mới chưa có tài liệu: gợi ý các tài liệu mới nhất của người khác.
+    if (ranked.isEmpty) return candidates.take(limit).toList();
     return ranked.take(limit).map((entry) => entry.document).toList();
   }
 
@@ -78,9 +84,5 @@ class RecommendationStruct {
     return result.toDouble();
   }
 
-  static List<String> _tagsFrom(DocumentModel document) {
-    final rawTags = document.toMap()['tags'];
-    if (rawTags is! List) return const [];
-    return rawTags.whereType<String>().toList();
-  }
+  static List<String> _tagsFrom(DocumentModel document) => document.tags;
 }

@@ -41,7 +41,17 @@ class _DocumentFormPageState extends State<DocumentFormPage> {
   double? _latitude;
   double? _longitude;
   bool _isLoading = false;
+  bool _isInitializing = false;
   bool _isInitialized = false;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.isEditing) {
+      _isInitializing = true;
+      _loadDocument();
+    }
+  }
 
   @override
   void dispose() {
@@ -56,10 +66,26 @@ class _DocumentFormPageState extends State<DocumentFormPage> {
   Future<void> _loadDocument() async {
     if (!widget.isEditing || _isInitialized) return;
 
-    final doc = await context.read<DocumentStruct>().getById(
-      widget.documentId!,
-    );
-    if (doc != null && mounted) {
+    try {
+      final doc = await context.read<DocumentStruct>().getById(
+        widget.documentId!,
+      );
+      if (!mounted) return;
+      if (doc == null) {
+        setState(() {
+          _isInitialized = true;
+          _isInitializing = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Không tìm thấy tài liệu hoặc bạn không có quyền.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        Navigator.pop(context);
+        return;
+      }
+
       setState(() {
         _titleController.text = doc.title;
         _descriptionController.text = doc.description;
@@ -72,7 +98,21 @@ class _DocumentFormPageState extends State<DocumentFormPage> {
         _latitude = doc.latitude;
         _longitude = doc.longitude;
         _isInitialized = true;
+        _isInitializing = false;
       });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _isInitialized = true;
+        _isInitializing = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Lỗi tải tài liệu: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      Navigator.pop(context);
     }
   }
 
@@ -199,27 +239,27 @@ class _DocumentFormPageState extends State<DocumentFormPage> {
 
   @override
   Widget build(BuildContext context) {
-    if (widget.isEditing && !_isInitialized) {
-      _loadDocument();
-    }
-
     return AppScaffold(
       title: widget.isEditing ? 'Sửa tài liệu' : 'Thêm tài liệu mới',
       actions: [
         IconButton(
-          onPressed: _isLoading ? null : _save,
+          onPressed: (_isLoading || _isInitializing) ? null : _save,
           icon: const Icon(Icons.check),
           tooltip: 'Lưu',
         ),
       ],
-      body: _isLoading
-          ? const Center(
+      body: (_isLoading || _isInitializing)
+          ? Center(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  CircularProgressIndicator(),
-                  SizedBox(height: 16),
-                  Text('Đang tải tài liệu lên Supabase Storage...'),
+                  const CircularProgressIndicator(),
+                  const SizedBox(height: 16),
+                  Text(
+                    _isInitializing
+                        ? 'Đang tải tài liệu...'
+                        : 'Đang lưu tài liệu lên Supabase...',
+                  ),
                 ],
               ),
             )
@@ -319,16 +359,19 @@ class _DocumentFormPageState extends State<DocumentFormPage> {
                       ),
                       const SizedBox(height: 16),
 
-                      // Vị trí vật lý (Đức hoàn thiện)
+                      // Vị trí vật lý
                       LocationField(
-                        initialName: _locationName,
-                        initialLatitude: _latitude,
-                        initialLongitude: _longitude,
-                        onChanged: (name, latitude, longitude) {
+                        locationName: _locationName,
+                        latitude: _latitude,
+                        longitude: _longitude,
+                        onLocationNameChanged: (value) {
+                          setState(() => _locationName = value);
+                        },
+                        onLocationChanged: (selection) {
                           setState(() {
-                            _locationName = name;
-                            _latitude = latitude;
-                            _longitude = longitude;
+                            _latitude = selection?.latitude;
+                            _longitude = selection?.longitude;
+                            if (selection == null) _locationName = '';
                           });
                         },
                       ),

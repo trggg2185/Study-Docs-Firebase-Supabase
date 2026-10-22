@@ -145,16 +145,5 @@ class _RecommendationSectionState extends State<RecommendationSection> {
     );
   }
 
-  List<String> _tagsFrom(DocumentModel document) {
-    final tags = document.toMap()['tags'];
-    if (tags is! List) return const [];
-    return tags.whereType<String>().toList();
-  }
-/// Khung "Gợi ý cho bạn" trên Home.
-/// TODO(duc): thay stub bằng danh sách tài liệu gợi ý (RecommendationStruct).
-class RecommendationSection extends StatelessWidget {
-  const RecommendationSection({super.key});
-
-  @override
-  Widget build(BuildContext context) => const SizedBox.shrink();
+  List<String> _tagsFrom(DocumentModel document) => document.tags;
 }

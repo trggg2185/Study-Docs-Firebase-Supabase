@@ -38,6 +38,7 @@ class _BorrowRequestButtonState extends State<BorrowRequestButton> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
       _loadRequestStatus();
       _setupRealtimeSubscription();
     });

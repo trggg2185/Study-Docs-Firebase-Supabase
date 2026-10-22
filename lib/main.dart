@@ -8,6 +8,7 @@ import 'firebase_options.dart';
 import 'pages/home_page.dart';
 import 'pages/login_page.dart';
 import 'services/firebase/auth_service.dart';
+import 'services/supabase/borrow_service.dart';
 import 'services/supabase/supabase_config.dart';
 import 'services/supabase/supabase_service.dart';
 import 'struct/document_struct.dart';
@@ -66,6 +67,7 @@ class StudyDocsApp extends StatelessWidget {
         Provider<SupabaseService>.value(value: supabaseService),
         Provider<DocumentStruct>.value(value: documentStruct),
         Provider<SearchStruct>.value(value: searchStruct),
+        Provider<BorrowService>(create: (_) => BorrowService(supabaseService)),
       ],
       child: MaterialApp(
         title: 'StudyDocs',
@@ -131,8 +133,9 @@ class _ProfileBootstrapState extends State<_ProfileBootstrap> {
   }
 
   Future<void> _ensureProfile() async {
+    final supabase = context.read<SupabaseService>();
     try {
-      await context.read<SupabaseService>().ensureProfile(
+      await supabase.ensureProfile(
         uid: widget.user.uid,
         email: widget.user.email ?? '',
         fullName: widget.user.displayName ?? '',
@@ -140,6 +143,9 @@ class _ProfileBootstrapState extends State<_ProfileBootstrap> {
     } catch (e) {
       debugPrint('Không tạo được profile Supabase: $e');
     }
+
+    // Lấy FCM token sau khi profile đã tồn tại; lỗi messaging không chặn vào app.
+    await BorrowService.setupFcmToken(supabase);
   }
 
   @override

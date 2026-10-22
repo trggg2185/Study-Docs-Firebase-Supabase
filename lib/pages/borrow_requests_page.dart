@@ -36,6 +36,7 @@ class _BorrowRequestsPageState extends State<BorrowRequestsPage> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
       _loadData();
       _setupRealtime();
       _setupFcm();

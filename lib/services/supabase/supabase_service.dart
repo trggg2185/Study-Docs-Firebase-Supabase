@@ -139,7 +139,8 @@ class SupabaseService {
   // 3. TÀI LIỆU (DOCUMENTS - POSTGRES DB)
   // ===========================================================================
 
-  /// Lấy danh sách tài liệu (RLS tự động lọc tài liệu của tôi và được chia sẻ)
+  /// Lấy danh sách tài liệu của tôi + tài liệu được chia sẻ cho email của tôi.
+  /// Lọc quyền phía client vì RLS hiện đang mở (xem README mục 9.3).
   Future<List<DocumentModel>> getDocuments({
     String? query,
     DocumentType? type,
@@ -238,6 +239,9 @@ class SupabaseService {
       }
     }
 
+    // Chặn truy cập trực tiếp bằng id khi tài liệu không thuộc về mình và chưa được chia sẻ.
+    if (ownerId != myUid && sharedPermission == null) return null;
+
     return DocumentModel.fromMap(map, sharedPermission: sharedPermission);
   }
 
@@ -286,7 +290,8 @@ class SupabaseService {
     return result['id'].toString();
   }
 
-  /// Cập nhật tài liệu (RLS kiểm tra quyền chủ sở hữu hoặc 'edit')
+  /// Cập nhật tài liệu. UI chỉ cho owner hoặc người được share quyền 'edit';
+  /// RLS hiện đang mở nên chưa chặn được ở tầng database.
   Future<void> updateDocument({
     required String id,
     required String title,
@@ -322,7 +327,7 @@ class SupabaseService {
     await _client.from('documents').update(updateMap).eq('id', id);
   }
 
-  /// Xóa tài liệu (RLS đảm bảo chỉ chủ sở hữu mới xóa được)
+  /// Xóa tài liệu. UI chỉ hiện nút xóa cho chủ sở hữu; RLS hiện đang mở.
   Future<void> deleteDocument(String id, {String? filePath}) async {
     if (filePath != null && filePath.isNotEmpty) {
       await deleteStorageFile(filePath);

@@ -28,7 +28,10 @@ class DocumentLocationCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (latitude == null || longitude == null) {
+    final name = locationName?.trim() ?? '';
+    final hasCoordinates = latitude != null && longitude != null;
+
+    if (name.isEmpty && !hasCoordinates) {
       return const SizedBox.shrink();
     }
 
@@ -42,40 +45,27 @@ class DocumentLocationCard extends StatelessWidget {
               'Vị trí tài liệu',
               style: Theme.of(context).textTheme.titleMedium,
             ),
-            if (locationName != null && locationName!.trim().isNotEmpty) ...[
-              const SizedBox(height: 8),
-              Text(locationName!.trim()),
-            ],
-            const SizedBox(height: 4),
-            Text(
-              'Lat: ${latitude!.toStringAsFixed(6)}, '
-              'Lng: ${longitude!.toStringAsFixed(6)}',
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
-            const SizedBox(height: 8),
-            Align(
-              alignment: Alignment.centerRight,
-              child: TextButton.icon(
-                onPressed: () => _openMap(context),
-                icon: const Icon(Icons.open_in_new),
-                label: const Text('Mở bản đồ'),
+            if (name.isNotEmpty) ...[const SizedBox(height: 8), Text(name)],
+            if (hasCoordinates) ...[
+              const SizedBox(height: 4),
+              Text(
+                'Lat: ${latitude!.toStringAsFixed(6)}, '
+                'Lng: ${longitude!.toStringAsFixed(6)}',
+                style: Theme.of(context).textTheme.bodySmall,
               ),
-            ),
+              const SizedBox(height: 8),
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton.icon(
+                  onPressed: () => _openMap(context),
+                  icon: const Icon(Icons.open_in_new),
+                  label: const Text('Mở bản đồ'),
+                ),
+              ),
+            ],
           ],
         ),
       ),
     );
   }
-
-import '../../modified/models/document_model.dart';
-
-/// Card hiển thị vị trí vật lý của tài liệu trong trang chi tiết.
-/// TODO(duc): thay stub bằng tên vị trí + mini-map + nút mở bản đồ.
-class DocumentLocationCard extends StatelessWidget {
-  final DocumentModel document;
-
-  const DocumentLocationCard({super.key, required this.document});
-
-  @override
-  Widget build(BuildContext context) => const SizedBox.shrink();
 }

@@ -5,6 +5,7 @@ import 'dart:typed_data';
 import '../modified/models/document_model.dart';
 import '../modified/models/document_share_model.dart';
 import '../services/supabase/supabase_service.dart';
+import 'location_data.dart';
 
 /// Business logic cho tài liệu - tầng struct
 /// Điều phối giữa Supabase Database, Storage và UI
@@ -67,6 +68,7 @@ class DocumentStruct {
   }) async {
     _validateTitle(title);
     _validateSubject(subject);
+    _validateLocation(locationName, latitude, longitude);
 
     String fileUrl = '';
     String filePath = '';
@@ -132,6 +134,7 @@ class DocumentStruct {
   }) async {
     _validateTitle(title);
     _validateSubject(subject);
+    _validateLocation(locationName, latitude, longitude);
 
     String? fileUrl;
     String? filePath;
@@ -222,6 +225,19 @@ class DocumentStruct {
     if (subject.trim().isEmpty) {
       throw ArgumentError('Môn học không được để trống');
     }
+  }
+
+  void _validateLocation(
+    String? locationName,
+    double? latitude,
+    double? longitude,
+  ) {
+    final error = LocationSelection.validate(
+      locationName: locationName ?? '',
+      latitude: latitude,
+      longitude: longitude,
+    );
+    if (error != null) throw ArgumentError(error);
   }
 
   void dispose() {

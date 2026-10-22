@@ -222,6 +222,23 @@ void main() {
     });
   });
 
+  group('DocumentStruct validation', () {
+    test('create() rejects invalid coordinates', () async {
+      final documentStruct = DocumentStruct(_FakeSupabaseService());
+
+      await expectLater(
+        documentStruct.create(
+          title: 'Tài liệu sai vị trí',
+          type: DocumentType.lecture,
+          subject: 'Địa lý',
+          latitude: 91,
+          longitude: 0,
+        ),
+        throwsArgumentError,
+      );
+    });
+  });
+
   group('DocumentStruct web upload', () {
     test(
       'create() uploads selected bytes when file is chosen on web',

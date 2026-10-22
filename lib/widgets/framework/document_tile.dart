@@ -167,37 +167,45 @@ class DocumentTile extends StatelessWidget {
         ),
         isThreeLine: true,
         onTap: onTap,
-        trailing: PopupMenuButton<String>(
-          icon: const Icon(Icons.more_vert, size: 20),
-          onSelected: (value) {
-            if (value == 'share') onShare?.call();
-            if (value == 'delete') onDelete?.call();
-          },
-          itemBuilder: (context) => [
-            if (isMyDoc)
-              const PopupMenuItem(
-                value: 'share',
-                child: Row(
-                  children: [
-                    Icon(Icons.share, size: 18, color: Colors.blue),
-                    SizedBox(width: 8),
-                    Text('Chia sẻ'),
-                  ],
-                ),
-              ),
-            if (isMyDoc && onDelete != null)
-              const PopupMenuItem(
-                value: 'delete',
-                child: Row(
-                  children: [
-                    Icon(Icons.delete_outline, size: 18, color: Colors.red),
-                    SizedBox(width: 8),
-                    Text('Xóa tài liệu', style: TextStyle(color: Colors.red)),
-                  ],
-                ),
-              ),
-          ],
-        ),
+        trailing: isMyDoc
+            ? PopupMenuButton<String>(
+                icon: const Icon(Icons.more_vert, size: 20),
+                onSelected: (value) {
+                  if (value == 'share') onShare?.call();
+                  if (value == 'delete') onDelete?.call();
+                },
+                itemBuilder: (context) => [
+                  const PopupMenuItem(
+                    value: 'share',
+                    child: Row(
+                      children: [
+                        Icon(Icons.share, size: 18, color: Colors.blue),
+                        SizedBox(width: 8),
+                        Text('Chia sẻ'),
+                      ],
+                    ),
+                  ),
+                  if (onDelete != null)
+                    const PopupMenuItem(
+                      value: 'delete',
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.delete_outline,
+                            size: 18,
+                            color: Colors.red,
+                          ),
+                          SizedBox(width: 8),
+                          Text(
+                            'Xóa tài liệu',
+                            style: TextStyle(color: Colors.red),
+                          ),
+                        ],
+                      ),
+                    ),
+                ],
+              )
+            : null,
       ),
     );
   }

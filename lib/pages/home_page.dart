@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../services/firebase/auth_service.dart';
+import '../services/supabase/supabase_service.dart';
 import '../struct/document_struct.dart';
 import '../modified/models/document_model.dart';
 import '../widgets/framework/app_scaffold.dart';
@@ -12,6 +13,7 @@ import '../widgets/util/loading_indicator.dart';
 import '../widgets/util/empty_state.dart';
 import 'document_form_page.dart';
 import 'document_detail_page.dart';
+import 'borrow_requests_page.dart';
 
 /// Trang chính - hiển thị danh sách tài liệu từ Supabase, search bar, bộ lọc
 class HomePage extends StatefulWidget {
@@ -28,6 +30,7 @@ class _HomePageState extends State<HomePage> {
   bool _onlyShared = false;
   String? _selectedTag;
   bool _isLoading = false;
+  int _loadVersion = 0;
   List<DocumentModel> _documents = [];
 
   @override
@@ -44,6 +47,8 @@ class _HomePageState extends State<HomePage> {
 
   /// Tải danh sách tài liệu từ Supabase
   Future<void> _loadDocuments() async {
+    if (!mounted) return;
+    final version = ++_loadVersion;
     setState(() => _isLoading = true);
     try {
       final docStruct = context.read<DocumentStruct>();
@@ -52,13 +57,13 @@ class _HomePageState extends State<HomePage> {
         type: _filterType,
         onlyShared: _onlyShared,
       );
-      if (mounted) {
+      if (mounted && version == _loadVersion) {
         setState(() {
           _documents = docs;
         });
       }
     } catch (e) {
-      if (mounted) {
+      if (mounted && version == _loadVersion) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Lỗi tải dữ liệu: $e'),
@@ -67,7 +72,9 @@ class _HomePageState extends State<HomePage> {
         );
       }
     } finally {
-      if (mounted) setState(() => _isLoading = false);
+      if (mounted && version == _loadVersion) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
@@ -83,6 +90,13 @@ class _HomePageState extends State<HomePage> {
     await Navigator.of(context).push(
       MaterialPageRoute(builder: (_) => DocumentDetailPage(documentId: doc.id)),
     );
+    _loadDocuments();
+  }
+
+  /// Mở danh sách yêu cầu mượn (cả yêu cầu nhận và gửi)
+  Future<void> _openBorrowRequests() async {
+    await Navigator.of(context)
+        .push(MaterialPageRoute(builder: (_) => const BorrowRequestsPage()));
     _loadDocuments();
   }
 
@@ -289,6 +303,11 @@ class _HomePageState extends State<HomePage> {
       title: 'StudyDocs',
       actions: [
         IconButton(
+          icon: const Icon(Icons.inbox_outlined),
+          tooltip: 'Yêu cầu mượn',
+          onPressed: _openBorrowRequests,
+        ),
+        IconButton(
           icon: const Icon(Icons.refresh),
           tooltip: 'Làm mới',
           onPressed: _loadDocuments,
@@ -362,8 +381,11 @@ class _HomePageState extends State<HomePage> {
                     // Lọc theo tag trong các tài liệu đã tải theo bộ lọc hiện tại
                     _buildTagFilterChips(),
 
-                    // Gợi ý tài liệu (Đức hoàn thiện)
-                    const RecommendationSection(),
+                    // Gợi ý tài liệu theo tag/môn/loại đã quan tâm
+                    RecommendationSection(
+                      service: context.read<SupabaseService>(),
+                      onDocumentTap: _openDocumentDetail,
+                    ),
 
                     const Divider(height: 1),
 
